@@ -9,34 +9,42 @@ the deployed page at <https://drhycheung.github.io/EnvML/>.
 
 ## Contents
 
-1. [Design thinking: from a dirty CSV to an honest predictor](#1-design-thinking-from-a-dirty-csv-to-an-honest-predictor)
+1. [Design thinking: from a dashboard that only looks back to a prediction you can act on](#1-design-thinking-from-a-dashboard-that-only-looks-back-to-a-prediction-you-can-act-on)
 2. [How the page was actually built](#2-how-the-page-was-actually-built)
 3. [The reproduction prompt](#3-the-reproduction-prompt) ← jump here if you just want to build it
 
 ---
 
-## 1. Design thinking: from a dirty CSV to an honest predictor
+## 1. Design thinking: from a dashboard that only looks back to a prediction you can act on
 
 The page is the output of one design-thinking loop applied to a real teaching problem:
-a machine-learning demo that students will believe, and that will not teach them
-something false.
+students already have plenty of environmental data, and plenty of dashboards to look at it
+with — and that is precisely why data alone changes nothing.
 
 | Stage | This project's arc |
 |---|---|
-| **1. Empathise** | The learner pain: ML demos usually show a number and a suspiciously high accuracy, with no baseline, no interval, and no admission of what the model cannot do. A student who reproduces such a demo learns that a bigger R² is simply better — which is how data leakage survives into production. |
-| **2. Define** | Problem statement: *students need to feel what a model can and cannot infer from data, so the demo must make its own limits visible rather than hide them.* Design goal: the honest comparison is the interface, not a footnote. |
-| **3. Ideate** | Options considered: (a) plain prediction readout; (b) readout + prediction interval; (c) baseline comparison; (d) leakage demonstration; (e) an explicit "what we could not use and why" panel. Chosen: (b)+(c)+(d)+(e) combined, with (d) as the centrepiece. The rejection of wind speed became the lesson rather than an omission. |
-| **4. Prototype** | The single-file page. Every choice materialised: side-by-side baseline table, a marker on the AQI scale, an interval explained in words ("among 8,000 similar historical records…"), and a rose-coloured panel stating that a feature was deliberately discarded *because it scored better*. |
+| **1. Empathise** | The user pain: an environmental analyst or school administrator opens a monitoring dashboard and sees 41,757 hours of history rendered beautifully. Every question they actually have is forward-looking: *will tomorrow evening exceed 150? Should we issue a health advisory? Do we switch on the heaters? Should the outdoor sports lesson move indoors?* A chart cannot answer any of them. It can only ever describe what already happened. So the data is abundant and the decision is still unavailable. |
+| **2. Define** | Problem statement: *we have the data but cannot make predictions, so the data is not very useful and does not lead to actions.* Design goal: the same data stream must produce a forward-looking estimate the user can act on — and must be honest enough that they trust it enough to act. |
+| **3. Ideate** | Options considered: (a) another monitoring dashboard — rejected, this is the thing that already exists and the thing that cannot decide anything; (b) a single fixed forecast number — rejected, useless without context; (c) point prediction + uncertainty interval + actionable class; (d) plus a baseline comparison so the number is believable; (e) plus an explicit "what we could not use and why" panel. Chosen: (c)+(d)+(e), with the class-threshold crossing as the actionable output. |
+| **4. Prototype** | The single-file page. Every choice materialised: the prediction is the centre of the page and the charts support it, not the other way round; a marker on the AQI scale showing where the estimate lands against the 50/150 thresholds that *are* the action triggers; an interval explained in words ("Among 5,220 historical records with similar test conditions, the true PM2.5 landed in this range 80% of the time…"); side-by-side baselines; and a rose-coloured panel stating that a feature was deliberately discarded *because it scored better*. |
 | **5. Test** | Cross-language parity tests, a DOM-stub end-to-end test, a browser pass with every non-document request aborted, and two real bugs caught by measurement rather than by looking — see §2. |
 
-The measurable outcome was **trustworthiness**, not prettiness: a student who reads the
-page should be able to state both what the model does well and where its 0.533 comes
-from.
+The measurable outcome was **decision usefulness**: a user must be able to set tomorrow's
+conditions, get a number, see whether it crosses an action threshold, and know how much to
+believe it. Trustworthiness is the second-order requirement, and it exists for the same
+reason — a prediction nobody trusts is as useless as no prediction at all.
+
+**Why prediction and not another chart.** A dashboard answers "what has the pollution been?"
+A prediction answers "what will it be?" — and only the second one has an action attached to
+it. This is the distinction the whole project is built on, and it is why the prediction
+readout occupies the prime space on the page while the charts are supporting evidence.
 
 **Benchmark against the real thing**: the Beijing Municipal Ecological Environment
-Monitoring Centre publishes authoritative hourly PM2.5. This project complements rather
-than replaces it. The page says so, and frames its own numbers as "what machine learning
-achieves on this dataset", not as a forecast.
+Monitoring Centre publishes authoritative hourly PM2.5 monitoring, and national centres
+publish forecasts. This project complements rather than replaces them. The page says so,
+and frames its own numbers as "what machine learning achieves on this dataset", not as an
+official forecast. The teaching point is that the step from raw monitoring data to a
+usable prediction is small, inspectable, and reproducible with a few lines of Python.
 
 > [!TIP]
 > This project is deliberately **not** novel — pollution prediction from meteorology is a
@@ -119,15 +127,41 @@ every pitfall above, so a working page should come out first-pass.
 Build a complete, standalone, single-file HTML page for a Beijing PM2.5 prediction demo,
 deployable on GitHub Pages. Everything inline, native ES6 only, no frameworks.
 
+PURPOSE — read this before designing anything. Monitoring data is abundant and dashboards
+to display it are easy, but a chart can only describe what ALREADY happened, so it never
+leads to an action. Someone asking "will tomorrow evening exceed 150 µg/m³ — do we issue a
+health advisory, move the sports lesson indoors, switch on the heaters?" cannot be helped
+by any amount of history. This page closes that gap: the same data stream must produce a
+forward-looking estimate the user can ACT on. Therefore the PREDICTION is the centre of the
+page, in the prime visual position, with the charts supporting it and never competing with
+it. A student must be able to set tomorrow's conditions, read a number, see whether it
+crosses an action threshold, and know how far to trust it.
+
 HARD CONSTRAINT — the finished index.html must make ZERO network requests. No CDN, no
 web fonts, no fetch(), no XHR. A student must be able to double-click the file from disk,
 offline, and have it work. Verify this by loading the page with every request EXCEPT the
 top-level document aborted, and confirming it still renders and predicts. Do not report
 success until that check passes.
 
-DATA: data/beijing_pm25.csv — UCI Beijing PM2.5 Data (Song et al., 2016). 43,824 hourly
-rows for Beijing 2010-2014. Columns: No, year, month, day, hour, pm2.5, DEWP, TEMP,
-PRES, cbwd (NW/NE/SE/cv), Iws, Is, Ir.
+STEP 0 — GET THE DATA FIRST. Assume the student does NOT have it. Never invent or fabricate a
+dataset; download the real one and verify it before using it.
+  mkdir -p data && curl -L -o /tmp/pm25.zip \
+    "https://archive.ics.uci.edu/static/public/381/beijing+pm2+5+data.zip"
+  unzip -o /tmp/pm25.zip -d data        # yields PRSA_data_2010.1.1-2014.12.31.csv
+  mv data/PRSA_data_2010.1.1-2014.12.31.csv data/beijing_pm25.csv
+  VERIFY, and stop if these do not match:
+    wc -l data/beijing_pm25.csv   -> 43,825  (43,824 data rows + 1 header)
+    head -1 data/beijing_pm25.csv -> No,year,month,day,hour,pm2.5,DEWP,TEMP,PRES,cbwd,Iws,Is,Ir
+  The file is about 2.0 MB compressed, 2.0 MB raw, and is byte-identical to the copy in the
+  repository. If the row count is not 43,825 you have the wrong file — do not proceed.
+  Gotcha: the legacy UCI path .../ml/machine-learning-databases/00381/BeijingPM2.5.data now
+  returns 404; UCI restructured its archive. Use the static/public URL above.
+  Gotcha: the column is literally named `pm2.5`. The dot breaks attribute access in some
+  libraries, so rename it to `pm25` on load and say so in a comment.
+  Also download, or hand to the student, the dataset card:
+    https://archive.ics.uci.edu/dataset/381/beijing+pm2+5+data
+  Dataset: Beijing PM2.5 Data (Song et al., 2016), UCI Machine Learning Repository.
+  43,824 hourly rows, 12 columns, 2010-01-01 to 2014-12-31.
 
 STEP 1 — profile the data BEFORE choosing features, and report what you find:
   - pm2.5 is missing in 4.72% of rows; drop them, leaving 41,757 rows.
@@ -173,6 +207,17 @@ STEP 4 — export the trees so no ML library is needed in the browser. Flatten e
   throw — it will just predict quietly wrong numbers forever.
 
 STEP 5 — the page. English throughout, including every code comment.
+  - LEAD WITH THE ACTIONABLE OUTPUT. Show the predicted concentration and the air-quality
+    class at the top, in the largest type on the page, with a one-sentence plain-English
+    reading of what that class implies ("Advisory-level: sensitive groups should limit
+    outdoor activity"). Place a marker on the AQI scale against the 50 and 150 µg/m³
+    thresholds, because those thresholds ARE the decision the user is trying to make — make
+    it visible whether the estimate is near one, over one, or between them. Charts come
+    after this, never before it.
+  - Support "will it be bad tomorrow?" directly: allow the user to set any month, hour,
+    temperature, dew point, pressure and wind direction, and have the prediction update
+    live. A user who can only replay historical rows has been given a dashboard, not a
+    predictor.
   - Slider bounds MUST be derived at runtime from the model's own input_ranges. Do NOT
     hard-code min/max on the range inputs: a slider narrower than the training data is a
     silent failure — the user cannot enter a real condition and a random real record gets
