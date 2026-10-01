@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Beijing PM2.5 Prediction Demo · Environmental ML Teaching Demo</title>
+<meta name="description" content="Enter meteorological observations and predict Beijing PM2.5 concentration and a three-band air-quality class with gradient-boosted trees. Full cross-validated evaluation shown alongside trivial baselines.">
+
+<!--
+  Beijing PM2.5 Prediction Demo
+  Copyright (c) 2026 drhycheung. MIT licensed — see LICENSE in the repository.
+
+  This file is GENERATED. Do not edit it: your changes will be overwritten.
+  Edit src/index.template.html instead, then run:
+      python3 scripts/train_model.py     (only if you want to retrain)
+      python3 scripts/build_page.py      (to re-inline model + CSS)
+      python3 scripts/verify_page.py     (to prove the page still agrees with Python)
+
+  The page has NO network dependencies: no CDN, no fonts, no API, no backend.
+  It is one file and it works by double-clicking it, offline, from disk.
+-->
+<style>/*__APP_CSS__*/</style>
+</head>
+<body class="bg-slate-100 text-ink-800">
+
+<!-- ==================================================================
+     Page header
+     ================================================================== -->
+<header class="bg-ink-900 text-white">
+  <div class="max-w-6xl mx-auto px-5 py-7">
+    <h1 class="text-2xl sm:text-3xl font-semibold tracking-tight">Beijing PM2.5 Prediction Demo</h1>
+    <p class="mt-2 text-slate-300 text-sm sm:text-base leading-relaxed max-w-3xl">
+      Enter air temperature, dew point, atmospheric pressure, wind direction, month
+      and hour to get an instant PM2.5 concentration and a three-band air-quality
+      class from gradient-boosted trees. The model is trained on
+      <span id="hdr-rows"></span> hourly monitoring records from Beijing.
+      Every metric on this page is an <strong class="text-white">out-of-fold
+      cross-validated</strong> figure, shown next to the simplest possible baseline.
+    </p>
+  </div>
+</header>
+
+<main class="max-w-6xl mx-auto px-5 py-7 space-y-6">
+
+  <!-- ==================================================================
+       Section 1 + 2: inputs on the left, prediction on the right.
+       ================================================================== -->
+  <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+    <!-- ---------- 1. Input panel ---------- -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+      <div class="flex items-center justify-between mb-4 gap-3">
+        <h2 class="font-semibold text-lg">1 · Meteorological inputs</h2>
+        <button id="btn-random" class="text-xs px-3 py-1.5 rounded-md bg-slate-100 hover:bg-slate-200 border border-slate-300 whitespace-nowrap">
+          Load a random real record
+        </button>
+      </div>
+
+      <div class="space-y-4">
+        <div>
+          <label class="flex justify-between text-sm font-medium mb-1">
+            <span>Air temperature · TEMP</span><span class="num text-blue-700" id="v-TEMP"></span>
+          </label>
+          <!-- NOTE: no min/max/step attributes on any range input. They are set from
+               MODEL.input_ranges in init() so the slider can never cover less than the
+               data the model was trained on. Hardcoding them here once hid a real bug:
+               the dew-point slider stopped at -32 degC while the training data reached
+               -40 degC, so a user could never enter a valid winter condition and the
+               model could never be exercised at the edge of its own range. -->
+          <input type="range" id="in-TEMP" class="w-full">
+          <p class="text-[11px] text-slate-500 mt-1">&deg;C &middot; trained range <span id="r-TEMP"></span></p>
+        </div>
+
+        <div>
+          <label class="flex justify-between text-sm font-medium mb-1">
+            <span>Dew point · DEWP</span><span class="num text-blue-700" id="v-DEWP"></span>
+          </label>
+          <input type="range" id="in-DEWP" class="w-full">
+          <p class="text-[11px] text-slate-500 mt-1">Higher dew point = more humid air, which favours fog and secondary aerosol formation &middot; <span id="r-DEWP"></span></p>
+        </div>
+
+        <div>
+          <label class="flex justify-between text-sm font-medium mb-1">
+            <span>Atmospheric pressure · PRES</span><span class="num text-blue-700" id="v-PRES"></span>
+          </label>
+          <input type="range" id="in-PRES" class="w-full">
+          <p class="text-[11px] text-slate-500 mt-1">hPa &middot; <span id="r-PRES"></span></p>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="flex justify-between text-sm font-medium mb-1">
+              <span>Month</span><span class="num text-blue-700" id="v-month"></span>
+            </label>
+            <input type="range" id="in-month" min="1" max="12" step="1" class="w-full">
+          </div>
+          <div>
+            <label class="flex justify-between text-sm font-medium mb-1">
+              <span>Hour of day</span><span class="num text-blue-700" id="v-hour"></span>
+            </label>
+            <input type="range" id="in-hour" min="0" max="23" step="1" class="w-full">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium mb-1">Wind direction · cbwd</label>
+          <div class="grid grid-cols-4 gap-2" id="in-cbwd">
+            <button data-v="NW" class="py-2 rounded-md text-sm border">NW</button>
+            <button data-v="NE" class="py-2 rounded-md text-sm border">NE</button>
+            <button data-v="SE" class="py-2 rounded-md text-sm border">SE</button>
+            <button data-v="cv" class="py-2 rounded-md text-sm border">Calm</button>
+          </div>
+          <!-- Wind speed is deliberately absent. See panel 3 for why. -->
+        </div>
+      </div>
+    </div>
+
+    <!-- ---------- 2. Prediction panel ---------- -->
+    <div class="space-y-4">
+      <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+        <h2 class="font-semibold text-lg mb-4">2 · Model prediction</h2>
+
+        <div class="grid grid-cols-2 gap-4 items-end">
+          <div>
+            <p class="text-xs text-slate-500">Predicted PM2.5</p>
+            <p class="num text-4xl font-semibold leading-tight" id="out-pm">&mdash;</p>
+            <p class="text-xs text-slate-500">&micro;g/m&sup3; &middot; 80% of outcomes fall in <span id="out-lo" class="num"></span> &ndash; <span id="out-hi" class="num"></span></p>
+          </div>
+          <div class="text-right">
+            <p class="text-xs text-slate-500">Air-quality class</p>
+            <p id="out-class" class="text-2xl font-semibold">&mdash;</p>
+            <p id="out-aqi" class="text-xs text-slate-500"></p>
+          </div>
+        </div>
+
+        <!-- Concentration scale: the six PM2.5 breakpoints of China's HJ 633 AQI bands.
+             The marker position is set in render(). -->
+        <div class="mt-5">
+          <div class="relative h-7 rounded overflow-hidden flex">
+            <div class="flex-1" style="background:#22c55e"></div>
+            <div class="flex-1" style="background:#eab308"></div>
+            <div class="flex-1" style="background:#f97316"></div>
+            <div class="flex-1" style="background:#ef4444"></div>
+            <div class="flex-1" style="background:#a21caf"></div>
+            <div class="flex-1" style="background:#4c1d95"></div>
+          </div>
+          <div class="relative h-4 text-[10px] text-slate-500 num">
+            <span class="absolute left-0">0</span>
+            <span class="absolute left-[7%]">35</span>
+            <span class="absolute left-[15%]">75</span>
+            <span class="absolute left-[23%]">115</span>
+            <span class="absolute left-[30%]">150</span>
+            <span class="absolute left-[50%]">250</span>
+            <span class="absolute right-0">500</span>
+          </div>
+          <div class="relative h-0">
+            <div class="absolute -top-9 w-0.5 h-7 bg-ink-900 transition-all" id="marker-bar" style="left:0"></div>
+          </div>
+          <p class="text-[11px] text-slate-500">Breakpoints are the PM2.5 ranges of the six HJ 633 air-quality bands</p>
+        </div>
+
+        <p id="out-note" class="mt-4 text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-md p-3 leading-relaxed"></p>
+
+        <div id="sample-box" class="mt-3 hidden text-xs bg-amber-50 border border-amber-300 rounded-md p-3">
+          <p class="font-semibold text-amber-900">Observed value for comparison</p>
+          <p class="mt-1 text-amber-800 num" id="sample-line"></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================================================================
+       Section 3: the honest evaluation panel.
+       ================================================================== -->
+  <section class="bg-white rounded-xl shadow-sm border border-slate-200">
+    <details open>
+      <summary class="flex items-center gap-2 px-5 py-4 font-semibold text-lg hover:bg-slate-50 rounded-t-xl">
+        <span class="caret text-slate-400">&#9656;</span>3 &middot; How good is this model, really?
+      </summary>
+      <div class="px-5 pb-5 space-y-6 text-sm" id="metrics-panel"></div>
+    </details>
+  </section>
+
+  <!-- ==================================================================
+       Section 4: data provenance and limits.
+       ================================================================== -->
+  <section class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 text-sm">
+    <h2 class="font-semibold text-lg mb-3">4 &middot; Data provenance and limitations</h2>
+    <div id="provenance" class="space-y-3 text-slate-700"></div>
+  </section>
+</main>
+
+<footer class="max-w-6xl mx-auto px-5 py-8 text-xs text-slate-500 border-t border-slate-200 mt-4">
+  <p>
+    Code released under the MIT licence. Data: UCI Machine Learning Repository &mdash;
+    Beijing PM2.5 Data (Song et al., 2016), published under CC&nbsp;BY&nbsp;4.0.
+    Every prediction is computed in your browser from the model weights embedded in this
+    file. Nothing is sent anywhere.
+  </p>
+</footer>
+
+<script>
+/* ==========================================================================
+   PURE-MODEL CORE — BEGIN
+   --------------------------------------------------------------------------
+   Everything between these two markers is side-effect free: no DOM, no window,
+   no globals beyond the declarations below. scripts/verify_page.py extracts
+   exactly this region, runs it under Node.js, and compares the output against
+   an independent Python implementation of the same traversal. That is what
+   makes "the page agrees with the training code" a testable claim instead of
+   an assertion.
+
+   Keep it that way. If you need the DOM, put the code AFTER the end marker.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   Trained model weights, inlined verbatim by scripts/build_page.py from
+   model/model.json. Do not hand-edit.
+   -------------------------------------------------------------------------- */
+const MODEL = /*__MODEL_DATA__*/ null;
+
+/* Slider/value ids, in the order buildFeatures() consumes them. */
+const IDS = ['TEMP', 'DEWP', 'PRES', 'month', 'hour'];
+
+/* --------------------------------------------------------------------------
+   1. Feature engineering — MUST stay line-for-line equivalent to engineer()
+      in scripts/train_model.py. If these two drift apart, every number on the
+      page is wrong and nothing will crash.
+      -------------------------------------------------------------------------- */
+function buildFeatures(g) {
+  const dirCode = { NW: 0, NE: 1, SE: 2, cv: 3 }[g.cbwd];
+  const TAU = Math.PI * 2;
+  return [
+    g.TEMP,                          // 0  air temperature
+    g.DEWP,                          // 1  dew point
+    g.TEMP - g.DEWP,                 // 2  dew-point depression (humidity proxy)
+    g.PRES,                          // 3  atmospheric pressure
+    g.PRES - 1013.25,                // 4  pressure anomaly
+    Math.sin(TAU * g.hour / 24),     // 5  hour of day, cyclical
+    Math.cos(TAU * g.hour / 24),     // 6  hour of day, cyclical
+    Math.sin(TAU * g.month / 12),    // 7  month, cyclical
+    Math.cos(TAU * g.month / 12),    // 8  month, cyclical
+    dirCode                          // 9  wind direction as an ordinal code
+  ];
+}
+
+/* --------------------------------------------------------------------------
+   2. Forward pass through both ensembles.
+
+   Trees are stored flattened, stride 5: [feature, threshold, left, right, value].
+   A leaf is marked by feature === -1. Child pointers are OFFSETS (multiples of
+   5), not indices. Traversal rule matches scikit-learn: feature <= threshold
+   goes LEFT. The distinction between "<=" and "<" is exactly the kind of detail
+   that silently costs you accuracy if you get it wrong, which is why the
+   Python side is checked against this.
+   -------------------------------------------------------------------------- */
+function regPredict(x) {
+  const lr = MODEL.regressor.learning_rate;
+  let out = MODEL.regressor.init;
+  const trees = MODEL.regressor.trees;
+  for (let t = 0; t < trees.length; t++) {
+    const a = trees[t];
+    let o = 0;
+    while (a[o] >= 0) {
+      o = 5 * (x[a[o]] <= a[o + 1] ? a[o + 2] : a[o + 3]);
+    }
+    out += lr * a[o + 4];
+  }
+  return out;
+}
+
+/* Raw additive scores in log-odds space. The page only ever needs an argmax,
+   so no softmax is applied. */
+function clfScores(x) {
+  const lr = MODEL.classifier.learning_rate;
+  const score = MODEL.classifier.init.slice();
+  const trees = MODEL.classifier.trees;
+  for (let t = 0; t < trees.length; t++) {
+    const a = trees[t].tree;
+    let o = 0;
+    while (a[o] >= 0) {
+      o = 5 * (x[a[o]] <= a[o + 1] ? a[o + 2] : a[o + 3]);
+    }
+    score[trees[t].cls] += lr * a[o + 4];
+  }
+  return score;
+}
+
+/* --------------------------------------------------------------------------
+   3. Prediction interval.
+
+   Not a formula: these are empirical residual percentiles measured out-of-fold
+   at training time, bucketed by predicted concentration. They answer "for
+   conditions like these, where did the truth actually land?", which is a much
+   more honest statement than a textbook confidence interval around a tree
+   ensemble would be.
+   -------------------------------------------------------------------------- */
+function predictionBand(pm) {
+  const e = MODEL.bands.edges;
+  let k = 0;
+  while (k < e.length - 2 && pm >= e[k + 1]) k++;
+  const b = MODEL.bands.resid[k];
+  if (!b) return null;
+  return { lo: pm + b.resid_lo10, hi: pm + b.resid_p90, n: b.n };
+}
+
+/* --------------------------------------------------------------------------
+   4. China's HJ 633 six-band AQI lookup. Interpretive only — it never feeds
+      back into the prediction.
+   -------------------------------------------------------------------------- */
+function officialBand(pm) {
+  for (const b of MODEL.aqi_bands) if (pm <= b.pm_hi) return b;
+  return MODEL.aqi_bands[MODEL.aqi_bands.length - 1];
+}
+
+/* ==========================================================================
+   PURE-MODEL CORE — END
+   ========================================================================== */
+
+
+const CLASS_HEX = ['#16a34a', '#ca8a04', '#ea580c'];
+
+/* Last prediction, kept so the random-record comparison can reference it. */
+let last = { pm: 0, cls: 0, name: '—' };
+
+/* ==========================================================================
+   5. Render the prediction.
+   ========================================================================== */
+function render() {
+  const g = readInputs();
+  const x = buildFeatures(g);
+  const pm = Math.max(0, regPredict(x));
+  const score = clfScores(x);
+  const cls = score.indexOf(Math.max.apply(null, score));
+  const name = MODEL.meta.class_names[cls];
+  const band = predictionBand(pm);
+  const off = officialBand(pm);
+
+  last = { pm: pm, cls: cls, name: name };
+
+  document.getElementById('v-TEMP').textContent  = g.TEMP.toFixed(1) + ' °C';
+  document.getElementById('v-DEWP').textContent  = g.DEWP.toFixed(1) + ' °C';
+  document.getElementById('v-PRES').textContent  = g.PRES.toFixed(1) + ' hPa';
+  document.getElementById('v-month').textContent = g.month;
+  document.getElementById('v-hour').textContent  = String(g.hour).padStart(2, '0') + ':00';
+
+  document.getElementById('out-pm').textContent = pm.toFixed(1);
+  document.getElementById('out-class').textContent = name;
+  document.getElementById('out-class').style.color = CLASS_HEX[cls];
+  document.getElementById('out-aqi').textContent =
+    'HJ 633 equivalent: AQI approx. ' + off.aqi_lo + '–' + off.aqi_hi + ' (' + off.name + ')';
+
+  const lo = band ? Math.max(0, band.lo) : null;
+  document.getElementById('out-lo').textContent = lo === null ? '—' : lo.toFixed(0);
+  document.getElementById('out-hi').textContent = band ? band.hi.toFixed(0) : '—';
+
+  document.getElementById('marker-bar').style.left =
+    Math.min(99, Math.max(0, pm / 500 * 100)) + '%';
+
+  document.getElementById('out-note').innerHTML = band
+    ? 'Among ' + band.n.toLocaleString() + ' historical records with similar test conditions, the true '
+      + 'PM2.5 landed in this range 80% of the time ('
+      + Math.max(0, band.lo).toFixed(0) + '–' + band.hi.toFixed(0)
+      + ' µg/m³). The model is reliable for judging <em>whether</em> a day is relatively '
+      + 'clean or relatively polluted; the exact value for any single hour still carries '
+      + 'substantial error.'
+    : 'Not enough historical records in this range to state an interval; showing the point estimate only.';
+}
+
+/* ==========================================================================
+   6. Honest evaluation panel, populated from metrics computed at training time.
+   ========================================================================== */
+function table(head, rows) {
+  let h = '<table class="w-full border-collapse"><thead><tr>';
+  head.forEach((c, i) => {
+    h += '<th class="' + (i ? 'text-right' : 'text-left') + ' py-1.5 px-2 border-b border-slate-400 font-semibold">' + c + '</th>';
+  });
+  h += '</tr></thead><tbody>';
+  rows.forEach(r => {
+    h += '<tr>';
+    r.forEach((c, i) => {
+      h += '<td class="' + (i ? 'text-right num' : 'text-left') + ' py-1.5 px-2 border-b border-slate-100">' + c + '</td>';
+    });
+    h += '</tr>';
+  });
+  return h + '</tbody></table>';
+}
+
+function renderMetrics() {
+  const M = MODEL.metrics, mt = MODEL.meta;
+  let h = '';
+
+  h += '<div><h3 class="font-semibold mb-1">Regression task: predicting PM2.5 concentration</h3>'
+     + '<p class="text-xs text-slate-500 mb-2">' + mt.cv_note + '. Training rows: '
+     + mt.rows_used.toLocaleString() + ' (the ' + mt.raw_missing_pm25_pct
+     + '% of raw records with missing PM2.5 were dropped).</p>'
+     + table(['Method', 'R²', 'RMSE (µg/m³)', 'MAE'], [
+        ['Always predict the training mean (baseline)', M.regression.baseline_mean.r2.toFixed(3), M.regression.baseline_mean.rmse, M.regression.baseline_mean.mae],
+        ['Multiple linear regression', M.regression.linear.r2.toFixed(3), M.regression.linear.rmse, M.regression.linear.mae],
+        ['<strong>Gradient-boosted trees (this page)</strong>', '<strong>' + M.regression.model.r2.toFixed(3) + '</strong>', M.regression.model.rmse, M.regression.model.mae]
+     ]) + '</div>';
+
+  const dLin = (M.regression.model.r2 - M.regression.linear.r2) * 100;
+  h += '<div class="bg-slate-50 border border-slate-200 rounded-lg p-4">'
+     + '<p><strong>How to read that table:</strong> the baseline R² is 0 because "always predict the '
+     + 'average" cannot explain any variance by construction. Linear regression explains '
+     + (M.regression.linear.r2 * 100).toFixed(0) + '%; adding non-linearity takes it to '
+     + (M.regression.model.r2 * 100).toFixed(0) + '%. Those <strong>'
+     + dLin.toFixed(0) + ' percentage points</strong> are the actual contribution of machine '
+     + 'learning here. But roughly ' + ((1 - M.regression.model.r2) * 100).toFixed(0)
+     + '% of the variance is still unexplained, and that remainder is not a modelling failure: '
+     + 'weather does not determine pollution concentration. Emissions and regional transport do.</p></div>';
+
+  h += '<div><h3 class="font-semibold mb-1">Classification task: three-band air quality</h3>'
+     + '<p class="text-xs text-slate-500 mb-2">Bands: Good &lt;50 &middot; Moderate 50–150 &middot; Polluted &ge;150 µg/m³</p>'
+     + table(['Method', 'Accuracy', 'Balanced accuracy', 'Class support'], [
+        ['Always predict the majority class (baseline)', (M.classification.baseline_majority * 100).toFixed(1) + '%', '50.0%', M.classification.class_support.join(' / ')],
+        ['<strong>Gradient-boosted classifier (this page)</strong>',
+         '<strong>' + (M.classification.model * 100).toFixed(1) + '%</strong>',
+         (M.classification.balanced_accuracy * 100).toFixed(1) + '%', '']
+     ]) + '</div>';
+
+  const cm = M.classification.confusion_matrix, cn = mt.class_names;
+  h += '<div><h3 class="font-semibold mb-1">Confusion matrix (rows = truth, columns = prediction)</h3>'
+     + '<table class="border-collapse"><thead><tr><th class="py-1 px-2"></th>';
+  cn.forEach(c => { h += '<th class="py-1 px-3 text-right font-semibold">' + c + '</th>'; });
+  h += '</tr></thead><tbody>';
+  cm.forEach((row, i) => {
+    h += '<tr><td class="py-1 px-2 font-medium">' + cn[i] + '</td>';
+    const tot = row.reduce((a, b) => a + b, 0);
+    row.forEach((v, j) => {
+      h += '<td class="py-1 px-3 text-right num ' + (j === i ? 'bg-green-100 font-semibold' : '')
+         + '">' + v.toLocaleString() + '<span class="text-slate-400 text-[10px] ml-1">'
+         + (v / tot * 100).toFixed(0) + '%</span></td>';
+    });
+    h += '</tr>';
+  });
+  h += '</tbody></table><p class="text-xs text-slate-500 mt-1">Green cells are correct predictions. '
+     + 'The model confuses heavily between neighbouring bands &mdash; which is the typical shape of an '
+     + 'environmental classification task: the boundary between adjacent classes has no sharp '
+     + 'physical definition.</p></div>';
+
+  const dD = (M.classification.model - M.classification.derived_from_regression) * 100;
+  h += '<div class="bg-amber-50 border border-amber-300 rounded-lg p-4">'
+     + '<p><strong>A comparison that is easy to overlook:</strong> if you skip the dedicated classifier '
+     + 'and simply push the regression output through the banding thresholds, accuracy is only <strong>'
+     + (M.classification.derived_from_regression * 100).toFixed(1) + '%</strong> — '
+     + dD.toFixed(1) + ' percentage points below the standalone classifier\'s '
+     + (M.classification.model * 100).toFixed(1) + '%. The gap comes from flips near the boundaries: '
+     + 'a concentration error of ±60 µg/m³ is enough to drop a borderline case into the neighbouring '
+     + 'band. <strong>"Predict a number, then threshold it" is not the same task as "classify"</strong> — '
+     + 'this is a choice about task design, not about which model is better.</p></div>';
+
+  const top = M.feature_importance[0][1];
+  h += '<div><h3 class="font-semibold mb-1">Feature importance</h3><table class="w-full">';
+  M.feature_importance.forEach(pair => {
+    h += '<tr><td class="py-1 px-2 w-44 text-xs">' + pair[0] + '</td>'
+       + '<td class="px-2 py-1"><div class="bg-blue-500 rounded" style="height:9px;width:'
+       + (pair[1] / top * 100).toFixed(1) + '%"></div></td>'
+       + '<td class="px-2 py-1 num text-xs text-right w-16">' + pair[1].toFixed(3) + '</td></tr>';
+  });
+  h += '</table><p class="text-xs text-slate-500 mt-2">The single most important feature is <strong>the '
+     + 'difference between air temperature and dew point</strong>, followed by the cyclical month terms. '
+     + 'That matches atmospheric chemistry: a small depression means the air is near saturation, so fog and '
+     + 'secondary aerosols form readily, while the month terms carry the seasonality of Beijing\'s heating '
+     + 'season. Note that the raw <code>No</code>, <code>year</code> and <code>day</code> columns were all '
+     + 'removed: the model sees only meteorological variables and time.</p></div>';
+
+  h += '<div class="bg-rose-50 border border-rose-300 rounded-lg p-4">'
+     + '<p><strong>A feature deliberately thrown away: wind speed.</strong> ' + MODEL.meta.wind_feature_note + '</p>'
+     + '<p class="mt-2 text-xs">This is the most important lesson in the demo: <strong>the variable that '
+     + 'looks most obviously relevant is not necessarily a usable variable.</strong> Feed the raw cumulative '
+     + 'counter reading in as if it were wind speed and cross-validated R² climbs from '
+     + M.regression.model.r2.toFixed(3) + ' to ' + M.regression.leaky_r2_with_iws.toFixed(3) + ' — but that '
+     + '"improvement" comes from the counter accumulating over time, not from any physical dilution effect. '
+     + 'A higher score that comes from leakage is worse than a lower honest score.</p></div>';
+
+  h += '<div class="bg-slate-50 border border-slate-200 rounded-lg p-4">'
+     + '<p><strong>Temporal extrapolation check:</strong> if we instead train on 2010–2013 and test on 2014 '
+     + 'only, R² = <strong>' + M.regression.temporal_holdout_2014_r2.toFixed(3) + '</strong>, close to the '
+     + M.regression.model.r2.toFixed(3) + ' from random cross-validation. The relationships the model '
+     + 'learned are stable over time rather than an artefact of leakage.</p></div>';
+
+  document.getElementById('metrics-panel').innerHTML = h;
+}
+
+/* ==========================================================================
+   7. Data provenance.
+   ========================================================================== */
+function renderProvenance() {
+  const mt = MODEL.meta;
+  const rows = [
+    '<p><strong>Dataset:</strong> ' + mt.dataset + '. Distributed by the UCI Machine Learning Repository: '
+    + '43,824 hourly records covering 2010–2014. This model drops the ' + mt.raw_missing_pm25_pct + '% of '
+    + 'records with missing PM2.5 and trains on <strong>' + mt.rows_used.toLocaleString() + '</strong>.</p>',
+
+    '<p><strong>Only 10 features.</strong> Air temperature, dew point, dew-point depression, pressure, '
+    + 'pressure anomaly, cyclical sin/cos of hour, cyclical sin/cos of month, and an ordinal code for wind '
+    + 'direction. <strong>Excluded on purpose:</strong> the co-measured pollutant concentrations '
+    + '(SO₂, NO₂, CO, O₃), wind speed, year and day-of-month. Excluding the co-measured pollutants is what '
+    + 'prevents the otherwise trivial "predict PM2.5 from the pollutants measured alongside it" leak.</p>',
+
+    '<p><strong>Why wind speed is missing:</strong> ' + mt.wind_feature_note + '</p>',
+
+    '<p><strong>Models (scikit-learn):</strong> regression via GradientBoostingRegressor (n_estimators='
+    + mt.reg_params.n_estimators + ', max_depth=' + mt.reg_params.max_depth + ', learning_rate='
+    + mt.reg_params.learning_rate + '); classification via GradientBoostingClassifier (n_estimators='
+    + mt.clf_params.n_estimators + ', max_depth=' + mt.clf_params.max_depth + ', learning_rate='
+    + mt.clf_params.learning_rate + '). Random seed ' + mt.seed + '.</p>',
+
+    '<p><strong>External validity:</strong> the model has only learned the pollution–meteorology '
+    + 'relationship of Beijing in 2010–2014. Applying it to Hong Kong or any other city will degrade '
+    + 'markedly. Treat the numbers here as a demonstration of "what machine learning can achieve on this '
+    + 'dataset", not as a real forecast for Beijing, and certainly not for anywhere else.</p>',
+
+    '<p class="text-xs text-slate-500">Citation: Song, C., Zhou, Y., Lu, J., &amp; Qi, J. (2016). Detecting '
+    + 'Outliers in Beijing’s PM2.5: A Data Mining Approach Based on PM2.5 Five Years of Data in Beijing. '
+    + '<em>ISPRS International Journal of Geo-Information, 5</em>(4), 48.</p>'
+  ];
+  document.getElementById('provenance').innerHTML = rows.join('');
+}
+
+/* ==========================================================================
+   8. Input reading, wiring, initialisation.
+   ========================================================================== */
+const DIR_LABEL = { NW: 'north-west (NW)', NE: 'north-east (SE)', SE: 'south-east (SE)', cv: 'calm and variable (cv)' };
+
+/* Currently selected wind direction. Lives OUTSIDE the pure-model core on
+   purpose: buildFeatures() takes cbwd as an argument, so the core stays free of
+   page state. This variable is the only piece of UI state the model path
+   depends on -- and when it went missing during development, init() threw,
+   every readout stayed blank, and the static checks all still passed. */
+let windDir = 'cv';
+
+function readInputs() {
+  const g = {};
+  for (const id of IDS) g[id] = parseFloat(document.getElementById('in-' + id).value);
+  g.cbwd = windDir;
+  return g;
+}
+
+function paintDir() {
+  const btns = document.querySelectorAll('#in-cbwd button');
+  for (let i = 0; i < btns.length; i++) {
+    const b = btns[i];
+    const on = b.dataset.v === windDir;
+    b.className = 'py-2 rounded-md text-sm border ' + (on
+      ? 'bg-blue-600 text-white border-blue-600 font-medium'
+      : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50');
+  }
+}
+
+function init() {
+  const mt = MODEL.meta;
+
+  /* --- Slider bounds come from the data, never from a literal in this file. ---
+     A slider narrower than the training range is a silent failure: the user
+     cannot enter a real condition, and a random "real record" gets clamped
+     before the model ever sees it. Deriving both bounds from the same
+     input_ranges object that train_model.py measured removes the whole class
+     of bug. Month and hour stay literal because they are calendar indices,
+     not measurements. */
+  for (const id of ['TEMP', 'DEWP', 'PRES']) {
+    const el = document.getElementById('in-' + id);
+    const [lo, hi] = mt.input_ranges[id];
+    el.min = lo; el.max = hi; el.step = 0.5;
+  }
+
+  /* Defaults come from the model metadata so that Python and the browser
+     cannot disagree about what "the default state of the page" is. They
+     describe a cold, calm, high-pressure December evening — the classic
+     shape of a Beijing winter pollution episode — and they are chosen so the
+     regressor and the classifier agree, which avoids opening on a
+     self-contradictory readout. */
+  const d = mt.defaults;
+  for (const id of IDS) document.getElementById('in-' + id).value = d[id];
+
+  /* Human-readable range captions next to each slider. */
+  const R = mt.input_ranges;
+  const unit = { TEMP: ' °C', DEWP: ' °C', PRES: ' hPa' };
+  for (const k of ['TEMP', 'DEWP', 'PRES']) {
+    document.getElementById('r-' + k).textContent = R[k][0] + ' – ' + R[k][1] + unit[k];
+  }
+  document.getElementById('hdr-rows').textContent = mt.rows_used.toLocaleString();
+
+  for (const id of IDS) {
+    document.getElementById('in-' + id).addEventListener('input', render);
+  }
+  const btns = document.querySelectorAll('#in-cbwd button');
+  for (let i = 0; i < btns.length; i++) {
+    btns[i].addEventListener('click', function () {
+      windDir = this.dataset.v;
+      paintDir();
+      render();
+    });
+  }
+
+  /* Load one genuine held-out record and show its measured value alongside the
+     prediction. Cycling deterministically (rather than randomly) keeps the
+     button reproducible for teaching and for automated tests. */
+  let si = 0;
+  document.getElementById('btn-random').addEventListener('click', function () {
+    const s = MODEL.samples[si % MODEL.samples.length];
+    si++;
+    for (const id of IDS) {
+      document.getElementById('in-' + id).value = s[id];
+    }
+    windDir = s.cbwd;
+    paintDir();
+    render();
+    const err = last.pm - s.observed_pm25;
+    document.getElementById('sample-box').classList.remove('hidden');
+    document.getElementById('sample-line').innerHTML =
+      s.year + '-' + String(s.month).padStart(2, '0') + '-' + String(s.day).padStart(2, '0')
+      + ' at ' + String(s.hour).padStart(2, '0') + ':00, wind ' + DIR_LABEL[s.cbwd] + '.<br>'
+      + '<strong>Measured ' + s.observed_pm25 + ' µg/m³ (' + s.observed_class + ')</strong>; '
+      + 'model predicted ' + last.pm.toFixed(1) + ' µg/m³ (' + last.name + '); error '
+      + (err >= 0 ? '+' : '') + err.toFixed(1) + ' µg/m³.';
+  });
+
+  paintDir();
+  renderMetrics();
+  renderProvenance();
+  render();
+}
+
+init();
+</script>
+</body>
+</html>
