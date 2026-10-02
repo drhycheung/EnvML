@@ -23,30 +23,15 @@ Environmental informatics is usually taught as three activities: **monitor**, **
 
 | Stage | What it means | Which project |
 |---|---|---|
-| **Monitor** | Collect and display data so that the current situation is visible | [EnvInfo](https://github.com/drhycheung/EnvInfo) — a live dashboard of Hong Kong air quality |
-| **Analyse** | Examine the data in order to explain patterns and relationships | **This project** — the model that explains how weather relates to PM2.5 |
-| **Control** | Act on the analysis, by deciding what to do next | **This project** — the prediction, and the thresholds that trigger an action |
+| **Monitor** | Collect data about conditions so that the current situation is visible | Both projects involve monitoring in different ways. [EnvInfo](https://github.com/drhycheung/EnvInfo) displays current air-quality conditions. **This project** uses historical weather and PM2.5 measurements collected over time as its data source. |
+| **Analyse** | Examine data to identify patterns, relationships or meaning | [EnvInfo](https://github.com/drhycheung/EnvInfo) performs analysis through visualisation to reveal spatial patterns and comparisons. **This project** performs analysis through statistical modelling to explain how weather relates to PM2.5. |
+| **Control** | Use insights from monitoring and analysis to support action or decision-making | [EnvInfo](https://github.com/drhycheung/EnvInfo) makes current conditions visible to help users decide what action to take now. **This project** produces predictions that can help inform decisions about future conditions, shown alongside thresholds at which action is normally taken. |
 
-The three stages are usually taught in that order, and it is worth being clear about why each
-one is necessary on its own.
+The three concepts overlap in practice. Most data-driven projects combine elements of all
+three, rather than belonging to just one stage.
 
-**Monitoring is not enough.** A dashboard displays what has already happened. It answers
-*"what was the pollution like this morning?"* It cannot answer *"will tomorrow evening exceed
-150 µg/m³?"*, and it therefore cannot support a decision about tomorrow. Data that cannot be
-used for a decision is of limited value, however well it is displayed.
-
-**Analysis alone is not enough either.** An analysis explains why pollution is high. A user
-who can only understand the past still has to decide about the future by judgement.
-
-**This project is the step from analysis to control.** It takes a data stream that could only
-be watched, and turns it into an estimate for a moment that has not happened yet. The estimate
-is presented next to the thresholds at which action is normally taken, so that a user can see
-whether a decision is required.
-
-It also presents the analysis honestly, because a prediction that the user cannot trust will
-not be acted upon. The page shows how the model performs against simple baselines, states
-which measurement could not be used, and displays the range within which the estimate is
-usually correct.
+Each project applies these ideas to a different dataset and for a different purpose. They are
+two different examples and are not designed to work together as a pipeline.
 
 The two projects are designed to be used together: EnvInfo supplies the monitoring stage, and
 this project supplies the analysis and control stages.

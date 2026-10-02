@@ -37,13 +37,16 @@ reason — an estimate that a user does not trust will not be acted upon.
 
 ### Context: Monitor, Analyse, Control
 
-This project covers the **analyse** and **control** stages of environmental informatics. The
-**monitor** stage is covered by a separate project,
-[EnvInfo](https://github.com/drhycheung/EnvInfo), which displays live air-quality
-measurements. The design-thinking problem addressed here begins where that project stops:
-once a monitoring system exists and the data are being displayed, the next question is
-whether those data can support a decision about a future hour. A dashboard cannot answer
-that question, and this project exists to answer it.
+The concepts of **monitor**, **analyse** and **control** are useful for describing how
+data-informed work operates. In practice, a single project often combines elements of all
+three. **This project** draws on historical weather and PM2.5 measurements (monitoring through
+data collection), builds a statistical model to identify relationships between weather and
+PM2.5 (analyse), and uses that model to predict future concentrations that can inform
+decisions (control). **EnvInfo** ([https://github.com/drhycheung/EnvInfo](https://github.com/drhycheung/EnvInfo))
+is a separate example that applies the same ideas to a different dataset.
+
+These are two different examples and are not designed to work together as a pipeline; each
+combines the three activities in its own way for its own purpose.
 
 ---
 
