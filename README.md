@@ -18,51 +18,26 @@ Pages repository and it is deployed.
 
 ## 1. Where this project fits: Monitor, Analyse, Control
 
-Environmental informatics is usually taught as three activities: **monitor**, **analyse** and
-**control**.
-
-| Stage | What it means | Which project |
-|---|---|---|
 This project is one of two teaching examples. The companion project,
 [EnvInfo](https://github.com/drhycheung/EnvInfo) is a browser-based air-quality dashboard for
-Hong Kong that displays live readings from EPD stations (monitoring with on-the-fly
-visualisation). EnvML applies the same three ideas to a different dataset: it uses historical
-weather and PM2.5 measurements (monitor), builds a statistical model to relate weather to
-PM2.5 (analyse), and produces hour-ahead predictions with policy thresholds to support
-decision-making (control).
+Hong Kong that displays live readings from EPD stations. EnvML applies the same three ideas
+to a different dataset: it uses historical weather and PM2.5 measurements (monitor), builds
+a statistical model to relate weather to PM2.5 (analyse), and produces hour-ahead predictions
+with policy thresholds to support decision-making (control).
 
 **A monitoring dashboard alone is not enough.** A dashboard shows what has already happened.
 It cannot answer *"will tomorrow evening exceed 150 µg/m³?"*, so it cannot directly support a
 decision about the future. Analysis and prediction are needed to move from description to
 action.
 
-The two projects are designed to be used together: EnvInfo supplies the monitoring stage, and
-this project supplies the analysis and control stages.
-
 ---
-
 ## 2. From data to a decision
 
-| Question | Answered by | Not answered by |
-|---|---|---|
-| "What has the pollution been?" | A dashboard, a chart or a time series | — |
-| "Will it exceed 150 µg/m³ tomorrow evening?" | — | A dashboard |
-| "Should an advisory be issued?" | **A prediction, shown against the threshold that triggers it** | — |
-| "How much should the estimate be trusted?" | Baselines, an uncertainty range, and a stated limitation | — |
-
-For this reason the prediction occupies the main position on the page and is displayed in the
-largest type. The air-quality scale beneath it shows where the estimate falls in relation to
-the 50 and 150 µg/m³ thresholds, because those thresholds are the decision that the user is
-trying to make. The charts appear after the prediction and are intended as supporting
-information.
-
-The user must be able to enter the conditions expected for a future hour and obtain an
-estimate for that hour. A tool that can only display historical records is a dashboard,
-regardless of how the records are labelled, and it would not answer the question the project
-exists to answer.
+A monitoring dashboard shows what has already happened, but it cannot answer *"will tomorrow
+evening exceed 150 µg/m³?"*. To move from description to decision-making, analysis and
+prediction are needed to estimate future conditions against the thresholds that trigger action.
 
 ---
-
 ## 3. What the page does
 
 | Feature | Implementation |
