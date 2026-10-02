@@ -41,8 +41,14 @@ OUT_JSON = os.path.join(ROOT, "model", "model.json")
 SEED = 42
 CV = KFold(5, shuffle=True, random_state=SEED)
 
-REG_KW = dict(n_estimators=250, max_depth=4, learning_rate=0.06)
-CLF_KW = dict(n_estimators=150, max_depth=4, learning_rate=0.08)
+# random_state is required for reproducibility. PRES and PRES_minus_1013 are exact
+# affine copies of each other (correlation 1.0), so their candidate splits are tied
+# at every node; scikit-learn breaks such ties in random feature order, which is
+# seeded from OS entropy when random_state is None. Without this, retraining
+# produces a slightly different model on every run and no published figure can be
+# reproduced.
+REG_KW = dict(n_estimators=250, max_depth=4, learning_rate=0.06, random_state=SEED)
+CLF_KW = dict(n_estimators=150, max_depth=4, learning_rate=0.08, random_state=SEED)
 
 # The 10 features the page is allowed to see, in the exact order the flattened
 # tree arrays reference them by index.
@@ -89,9 +95,10 @@ DEFAULTS = {"TEMP": -5.0, "DEWP": -6.0, "PRES": 1035.0, "month": 12, "hour": 20}
 def load():
     """Read the raw CSV and drop rows with a missing target."""
     d = pd.read_csv(DATA).rename(columns={"pm2.5": "pm25"})
+    raw_rows = int(len(d))
     missing_pct = round(float(d["pm25"].isna().mean() * 100), 2)
     d = d.dropna(subset=["pm25"]).reset_index(drop=True)
-    return d, missing_pct
+    return d, missing_pct, raw_rows
 
 
 def engineer(d):
@@ -200,7 +207,7 @@ def clf_pred(flat_trees, x, lr, init):
 
 def main():
     os.makedirs(os.path.dirname(OUT_JSON), exist_ok=True)
-    d, missing_pct = load()
+    d, missing_pct, raw_rows = load()
     X = engineer(d)
     y = d["pm25"].to_numpy(dtype=float)
     yc = np.digitize(y, CLASS_EDGES)
@@ -208,6 +215,13 @@ def main():
     print("data      : %d rows x %d features | raw missing pm2.5 %.2f%%"
           % (len(d), X.shape[1], missing_pct))
     print("class balance: %s" % dict(zip(CLASS_NAMES, np.bincount(yc).tolist())))
+
+    # 41757 is not divisible by 5, so the fold sizes differ by one record. Record the
+    # real sizes rather than a rounded average: the page must not imply that every
+    # fold held out exactly the same number of records.
+    fold_test = [int(len(te)) for _, te in CV.split(X)]
+    fold_train = [int(len(tr)) for tr, _ in CV.split(X)]
+    print("cv folds  : test=%s train=%s" % (fold_test, fold_train))
 
     # ---- fit the two models that get shipped ----
     reg = GradientBoostingRegressor(**REG_KW).fit(X, y)
@@ -314,6 +328,7 @@ def main():
                          "data in Beijing. ISPRS International Journal of Geo-Information, "
                          "5(4), 48."),
             "rows_used": int(len(d)),
+            "raw_rows": raw_rows,
             "wind_feature_note": WIND_DROPPED_NOTE,
             "raw_missing_pm25_pct": missing_pct,
             "features": FEATURES,
@@ -321,6 +336,9 @@ def main():
             "class_names": CLASS_NAMES,
             "class_edges": CLASS_EDGES,
             "seed": SEED,
+            "cv_folds": CV.get_n_splits(),
+            "fold_test_sizes": fold_test,
+            "fold_train_sizes": fold_train,
             "cv_note": "5-fold shuffled cross-validation, out-of-fold predictions",
             "reg_params": dict(REG_KW),
             "clf_params": dict(CLF_KW),

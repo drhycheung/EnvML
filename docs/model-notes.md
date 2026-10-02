@@ -21,18 +21,18 @@ no ML library, how that hand-off is proved correct, and the maintenance traps it
 
 ### 1.1 Why a baseline comes first
 
-The single most useful habit in applied machine learning is to answer "how much better
-than doing nothing?" before asking "is this model good?".
+The most useful habit in applied machine learning is to answer the question "how much
+better than doing nothing?" before asking "is this model good?"
 
-"Doing nothing" has to be spelled out, because *how* you spell it changes the answer. Here
-are the two trivial predictors this page always shows:
+"Doing nothing" must be defined precisely, because the definition changes the answer. The
+page always displays two such reference predictors:
 
 | Baseline | What it does | Score on this data |
 |---|---|---|
 | Predict the mean | Ignore the inputs, always answer the average PM2.5 of the training set (98.6 µg/m³) | R² = 0.000 |
 | Predict the majority class | Always answer "Moderate", the commonest air-quality band | Accuracy 40.66% |
 
-**Why the mean-predictor scores exactly R² = 0, and why that is not a bug.** R² is defined
+**Why the mean-predictor scores exactly R² = 0, and why this is the expected result.** R² is defined
 as
 
 ```text
@@ -41,14 +41,14 @@ R² = 1 − (sum of squared errors) / (sum of squared deviations from the mean)
 
 The denominator is the total variance of the target. Always predicting the mean makes the
 numerator *identical* to the denominator, so R² = 1 − 1 = 0. Any model that predicts
-slightly worse than the mean scores negative. A negative R² therefore does not mean
-"backwards" — it means the model is actively worse than a constant.
+slightly worse than the mean scores negative. A negative R² does not mean that the model has predicted in the wrong direction. It means
+that the model performs worse than a constant.
 
-**Why 40.66% looks impressive and is not.** The three air-quality bands are not equally
-common (Good 15,684 · Moderate 16,980 · Polluted 9,093), so a model that always answers
-"Moderate" is right 40.66% of the time while knowing nothing at all. Any classifier you
-build must be read against that number, not against 33% or against zero. This is why the
-page prints both side by side.
+**Why 40.66% appears high but indicates no useful ability.** The three air-quality bands do
+not occur with equal frequency (Good 15,684 · Moderate 16,980 · Polluted 9,093), so a model
+that always answers "Moderate" is correct 40.66% of the time while using no information at
+all. Any classifier must therefore be assessed against that figure, and not against 33% or
+against zero. The page prints both values together for this reason.
 
 ### 1.2 Linear regression
 
@@ -59,15 +59,15 @@ predicted PM2.5 = b₀ + b₁·TEMP + b₂·DEWP + … + b₁₀·wind_dir
 ```
 
 The coefficients `b` are chosen to minimise the total squared error — "least squares",
-hence **ordinary least squares (OLS)**. It is the first model worth trying for any numeric
-target, and the reason it is on the page is not that it is good (R² 0.376) but that it is
-the natural next step after the mean-predictor, and it makes the improvement attributable.
+hence **ordinary least squares (OLS)**. It is the first model to try for any numeric target. It appears on the page not because it
+is accurate (R² 0.376) but because it is the natural next step after the mean-predictor,
+and it makes the size of the improvement attributable to the model family.
 
-What it captures is a set of straight-line effects: "each degree colder adds so much",
-"each month of winter adds so much". Its ceiling is that **it cannot bend**. Pollution
-responds non-linearly — a small dew-point depression matters enormously (it means the air
-is near saturation and secondary aerosol can form) while a large one barely matters, and a
-linear model must apply the same slope everywhere.
+What it captures is a set of straight-line effects: "each degree colder adds this much",
+"each month of winter adds this much". Its limitation is that **it cannot represent curved
+relationships**. Pollution responds non-linearly: a small dew-point depression matters greatly,
+because the air is then close to saturation and secondary aerosol can form, while a large
+depression matters little. A linear model must apply the same slope in both cases.
 
 ### 1.3 Decision trees
 
@@ -86,14 +86,14 @@ That is the whole algorithm. It has two properties that matter here:
   *and* December → 250" and "cold *and* windy *and* December → 80" with no difficulty. This
   is exactly the interaction linear regression cannot express.
 - **It is interpretable.** You can read the rules off directly, which is why the first
-  split in the real exported model (below) is a question about humidity.
+  split in the exported model is a question about humidity.
 
-A single deep tree, though, memorises the training data. It also predicts a *constant*
-inside each leaf, so it can only ever be a piecewise-constant function.
+A single deep tree, however, memorises the training data. It also predicts a *constant*
+within each leaf, so it can only ever represent a piecewise-constant function.
 
 ### 1.4 Gradient boosting: many small trees, added together
 
-Gradient boosting fixes both problems by refusing to use one tree.
+Gradient boosting addresses both problems by using not one tree but many.
 
 1. Start from a constant — the mean of the target, **98.6132** here.
 2. Fit a **small** tree to the current errors, not to the data itself.
@@ -107,9 +107,8 @@ failure. The "gradient" is the formal reason it works: each tree is fitted to th
 gradient of the loss function, which is the direction that most reduces the error.
 
 Trees here have **`max_depth=4`**, so each one can have at most 2⁴ = 16 leaves — and in
-practice far fewer, since splits stop when a split is no longer worth making. A depth-4
-tree is a genuinely weak learner. Two hundred and fifty of them, added gently, are strong.
-That is the whole trick.
+practice far fewer, since splits stop when a split is no longer worth making. A depth-4 tree is therefore a deliberately weak learner. Two hundred and fifty of them, added
+in small increments, are strong. This is the central idea.
 
 **A real prediction, traced through the exported model.** The page's default input is
 −5 °C air, −6 °C dew point, 1035 hPa, December, 20:00, calm. Here is the first of the 250
@@ -129,24 +128,24 @@ ensemble:
     = 225.88 µg/m³      <- exactly what the page displays
 ```
 
-Read the first split aloud: *"how far is this air from saturation?"* A dew-point depression
+The first split asks: *"how far is this air from saturation?"* A dew-point depression
 of 1 °C is nowhere near the 10.5 °C threshold, so the model goes left. Then *"is this
 December?"* — and `month_cos = +1.00` because December is the month in which the cyclical
-encoding peaks. The model reached for humidity and season before anything else, which is
-also what the feature-importance table says, and it matches atmospheric chemistry: Beijing's
-winter heating season is when PM2.5 accumulates.
+encoding peaks. The model therefore considers humidity and season before any other variable. This agrees with
+the feature-importance table and with atmospheric chemistry: PM2.5 accumulates in Beijing
+during the winter heating season.
 
-**Cost.** 250 trees × about 30 nodes each is **7,630 nodes** — around 640 KB of numbers.
-Small enough to ship inside a web page, which is the whole reason this technique was
-chosen over anything heavier.
+**Size.** 250 trees × about 30 nodes each gives **7,630 nodes**, approximately 640 KB of
+numbers. This is small enough to store inside a web page, which is the reason this technique
+was chosen in preference to a heavier one.
 
 ### 1.5 Classification, and why it is a separate model
 
 The regression answers *how much*. To answer *which band*, the page trains a second model
 of the same family on the banded label instead of the concentration.
 
-Internally, scikit-learn's `GradientBoostingClassifier` fits **one binary tree per class per
-round**: 150 rounds × 3 classes = **450 trees**, in 13,852 nodes. Each tree's leaf value is
+Internally, scikit-learn's `GradientBoostingClassifier` fits **one binary tree for each class
+in each round**: 150 rounds × 3 classes = **450 trees**, in 13,852 nodes. Each tree's leaf value is
 added to its own class's running score, and the class with the highest score wins.
 
 Each class starts from its own prior in log-odds form, which is where the intercept comes
@@ -157,10 +156,10 @@ log(15684/41757) = -0.979226     log(16980/41757) = -0.899831     log(9093/41757
 ```
 
 Those three numbers are stored verbatim as `classifier.init`, and are exactly
-`log(class frequency)` — verified to six decimal places. Because the scores live in
-log-odds space (an unbounded scale where 0 means "no leaning either way"), the page takes an
-`argmax` and never applies a softmax: softmax is monotonic, so it cannot change which
-argument is largest.
+`log(class frequency)`, verified to six decimal places. Because the scores are held in
+log-odds space, an unbounded scale on which 0 means an equal probability for each class, the
+page takes an `argmax` and does not apply a softmax: a softmax is monotonic and cannot change
+which value is the largest.
 
 **Three numbers appear in the classification panel, and they answer different questions:**
 
@@ -170,9 +169,9 @@ argument is largest.
 | Balanced accuracy | How often is it right *in each band*? | 67.22% |
 | Majority-class baseline | How often would "always say Moderate" be right? | 40.66% |
 
-Balanced accuracy is the average of the per-band recalls. It is reported because the bands
-are unequal — Polluted is 9,093 rows against Good's 15,684 — so a model could improve
-overall accuracy simply by under-predicting the rare class.
+Balanced accuracy is the mean of the per-band recall values. It is reported because the bands
+are unequal in size: Polluted has 9,093 records against Good's 15,684, so a model could
+raise overall accuracy simply by predicting the rarest class too rarely.
 
 **Reading the confusion matrix.** Rows are truth, columns are prediction, diagonal cells are
 correct:
@@ -180,16 +179,17 @@ correct:
 ```text
               predicted →   Good   Moderate  Polluted
 truth Good                  11,681     3,656       347
-truth Moderate               2,568    12,614     1,798
+truth Moderate               2,568    12,613     1,799
 truth Polluted                 348     3,935     4,810
 ```
 
-The errors are almost entirely **between neighbouring bands**, never at the extremes: only
-347 Good rows are called Polluted, and 348 Polluted rows are called Good. That is not a
-weakness so much as the nature of the task. The 50 µg/m³ and 150 µg/m³ boundaries are
-round numbers chosen by policy, not physical discontinuities in the atmosphere. A model
-being unsure whether 149 is "Moderate" or "Polluted" is being asked an ill-posed question,
-and the honest response is to be unsure.
+Almost all of the errors occur **between neighbouring bands**, and almost none occur at the
+extremes: only 347 Good records are classified as Polluted, and 348 Polluted records as Good.
+This reflects the nature of the task rather than a fault in the model. The 50 µg/m³ and
+150 µg/m³ boundaries are values chosen by policy and do not correspond to any physical
+discontinuity in the atmosphere. A model that is uncertain whether 149 µg/m³ is "Moderate"
+or "Polluted" has been given a question with no precise answer, and the appropriate response
+is to report the uncertainty.
 
 ### 1.6 Cross-validation: where the numbers come from
 
@@ -198,12 +198,12 @@ shuffled cross-validation. Concretely: split the 41,757 rows into 5 folds; for e
 train on the other four and predict the held-out fifth; assemble all five held-out
 prediction sets; only then compute R², RMSE, accuracy or the confusion matrix.
 
-The reason is that a model scored on its own training data is scored on data it has already
-memorised, and the score is meaningless. Out-of-fold scoring means every number is measured
-on rows the model had never seen, which is the only way to estimate how it will behave on
-tomorrow's data.
+A model evaluated on its own training data has already seen the data it is being tested on,
+so the resulting score does not indicate performance on new data. Out-of-fold scoring
+measures every figure on records the model has not seen, which is the only basis on which its
+future performance can be estimated.
 
-Two further checks guard against fooling ourselves:
+Two further checks reduce the risk of accepting a misleading figure:
 
 - **Temporal holdout.** Train on 2010–2013, test on 2014 only: R² = 0.556, close to the
   0.533 from random folds. A large gap would mean the CV figure was an artefact of the
@@ -233,10 +233,10 @@ the learner more columns.
 **What ordinal wind direction costs.** `cbwd` is coded NW=0, NE=1, SE=2, cv=3. That
 ordering is arbitrary: the model will happily learn that cv is "more" than SE. The correct
 encoding is one-hot (four separate 0/1 features), which would give up nothing to the model.
-It is kept as an ordinal code because it keeps the tree arrays at 10 features and the
-interactions the trees actually found were between wind and season rather than between
-wind directions. **Flagged rather than hidden**: it is a simplification, and on a
-predictive-accuracy-driven project it would be the first thing to change.
+It is retained as an ordinal code in order to keep the tree arrays at 10 features, because the
+interactions the trees found were between wind and season rather than between wind
+directions. This is a deliberate simplification and is stated here rather than concealed: on a
+project whose objective were predictive accuracy, it would be the first change made.
 
 ### 1.8 The leak: a higher score that means less
 
@@ -249,11 +249,44 @@ it can partly infer *when in the record* a row sits, and Beijing's pollution is 
 seasonal and strongly trending. That is not wind physics; it is time leaking through an
 accumulator. The full investigation is in the [dataset card](dataset.md).
 
-This is the most transferable lesson on the page: **when a model scores better than you
-expected, the first hypothesis should be that you leaked something, not that you found
-something.**
+This is the most broadly applicable lesson in the project: **when a model performs better
+than expected, the first hypothesis to test is that information has leaked, rather than that
+something new has been found.**
 
-### 1.9 The prediction interval is empirical, not probabilistic
+### 1.9 Reproducibility: two perfectly duplicated features
+
+`PRES` and `PRES_minus_1013` are related by `PRES = PRES_minus_1013 + 1013.25`. Their
+correlation is 1.0 to twelve decimal places, and subtracting one from the other and
+recovering the constant is exact to floating-point precision. One of the two features is
+therefore mathematically redundant, and the model cannot do anything with the pair that it
+could not do with either feature alone.
+
+That redundancy has a consequence which is easy to miss. At any node where both features
+offer an equally good split, the tree has no reason to prefer one over the other, and
+scikit-learn resolves the tie by considering candidate features in a **random order**. That
+order is drawn from a generator seeded by `random_state`; when `random_state` is `None` it is
+seeded from operating-system entropy. The result is that `PRES` and `PRES_minus_1013` swap
+places between training runs.
+
+The effect is small but real. Across repeated runs of an otherwise identical script, the
+feature importance figures, the RMSE in the third decimal place, and individual cells of the
+confusion matrix all moved. No published figure could be reproduced, and a student who
+retrained would obtain slightly different numbers from those printed in the README.
+
+Setting `random_state=42` on both estimators resolves it. Two consecutive runs of
+`train_model.py` now produce byte-for-byte identical output, which is the property the
+project claims and the property a teaching example requires.
+
+**The general lesson:** a fixed seed is not sufficient on its own. A model is reproducible
+only if it is also *deterministic*, and any two features that are exact linear
+transformations of each other create ties that a random tie-break can resolve differently on
+every run. The correct response to a genuinely redundant feature is to remove one of the two.
+Both are retained here because they cost nothing at prediction time and because the resulting
+importance figures (0.028 and 0.029) demonstrate the tie directly — the two split the
+importance between them almost evenly, which is what a redundant pair should do. On a
+predictive-accuracy project, one of them would be deleted.
+
+### 1.10 The prediction interval is empirical, not probabilistic
 
 The page shows an 80% range. It is not a textbook confidence interval: it is the measured
 10th and 90th percentile of the actual residuals of similar rows, bucketed by predicted
@@ -267,8 +300,9 @@ future hour, and the page words it accordingly.
 
 ## 2. Tree serialisation format
 
-scikit-learn fitted trees are objects with NumPy arrays inside. To run them in a browser
-with no ML library, each tree is flattened to a single flat array at **stride 5**:
+A fitted scikit-learn tree is an object containing NumPy arrays. In order to run it in a
+browser without a machine-learning library, each tree is converted to a single flat array at
+**stride 5**:
 
 | Offset | Meaning |
 |---|---|
@@ -288,15 +322,16 @@ the file:
 | Grouping | none — all trees summed | `cls` says which class's score each tree feeds |
 | Total nodes | 7,630 | 13,852 |
 
-Three details are easy to get wrong, and none of them throw:
+Three details are easily implemented incorrectly, and none of them produces an error message:
 
 - **Child pointers are offsets, not indices.** `trees[o]` is reached with `o = 5 * child`.
   Storing indices instead produces a page that loads cleanly and predicts nonsense.
 - **The comparison is `<=`.** `feature <= threshold` goes left, matching scikit-learn.
-- **Child offsets are usually `0`.** Pointing at offset 0 means "back to the root", which
-  is a valid reference to the tree's own start. Reading `0` as "node zero" is correct here
-  only by coincidence of layout — which is exactly why the harness compares against a
-  second implementation instead of trusting inspection.
+- **A child offset is frequently `0`.** An offset of 0 refers to the start of the same tree,
+  so it is a valid reference to that tree's own first node. Treating `0` as "node zero" gives
+  the correct result here only because of the memory layout. This is precisely why the
+  verification harness compares against a second implementation rather than relying on
+  inspection.
 
 Ensemble prediction:
 
@@ -305,11 +340,11 @@ regression:   init_constant + learning_rate × sum(all tree leaf values)
 classification (per class k): log(class_prior[k]) + learning_rate × sum(k's trees' leaf values)
 ```
 
-Two rounding steps reduce `model.json` from ~1.4 MB to 640 KB: regressor leaves to 3
-decimal places, classifier leaves to 5. The self-check quantifies the cost: maximum
-deviation from a live `sklearn.predict` is **0.00073 µg/m³**, and class agreement is
-**1.0000** over 2,000 rows. In other words, the rounding is free at the precision the page
-displays.
+Two rounding operations reduce `model.json` from approximately 1.4 MB to 640 KB: regressor
+leaf values are rounded to 3 decimal places and classifier leaf values to 5. The export
+self-check quantifies the cost: the maximum deviation from a live `sklearn.predict` is
+**0.00073 µg/m³**, and class agreement is **1.0000** over 2,000 records. At the precision the
+page displays, this rounding therefore has no practical effect.
 
 ### Why feature order is load-bearing
 
@@ -319,7 +354,8 @@ the same order forever. Reordering one without the other silently scrambles the 
 page keeps working, the numbers stay plausible, and every prediction is wrong.
 
 `scripts/verify_page.py` compares feature *vectors* element by element, not just final
-predictions, so a reordering fails loudly instead of degrading quietly.
+predictions, so a reordering of the feature list is reported as an error rather than
+producing incorrect results.
 
 ---
 
@@ -339,20 +375,23 @@ Each check targets a failure that produces **no error message at all**.
 Three properties worth naming:
 
 **The two implementations are independent.** `verify_page.py` deliberately does not import
-`train_model.py`. It re-implements the feature builder and the tree traversal in plain
-Python. If both sides shared code, agreement would be guaranteed and would prove nothing.
-The same applies on the JS side: the Python evaluator never sees the JavaScript.
+`train_model.py`. It re-implements the feature builder and the tree traversal separately in
+Python. If both sides used the same code, agreement would be guaranteed and would therefore
+demonstrate nothing. The same principle applies on the JavaScript side: the Python
+evaluator never executes the page's JavaScript.
 
-**Group [4] exists because groups [1]–[3] all passed on a broken build.** A missing
-`let windDir` made `init()` throw, leaving every readout blank — while the page rendered
-with full styling and every static check stayed green. Parity tests cannot see it, because
-the broken variable lives only in the DOM-dependent half of the script. The stub DOM makes
-"the page's JavaScript actually runs" a testable claim.
+**Group [4] exists because groups [1] to [3] all passed on a broken build.** A missing
+`let windDir` caused `init()` to throw, leaving every readout blank, while the page rendered
+with complete styling and every static check passed. A parity test cannot detect this,
+because the affected variable is used only in the part of the script that depends on the
+page. The stub DOM makes "the page's JavaScript runs to completion" a claim that can be
+tested.
 
-**Extrapolation is tested deliberately.** One case sits outside the training range. Trees
-extrapolate to a finite constant by construction, and the check is that both languages do so
-identically — not that the number is meaningful. It is not, and the page says nothing about
-inputs beyond the trained range because there is nothing honest to say.
+**Extrapolation is tested deliberately.** One case lies outside the training range. By
+construction a tree returns a finite constant for such an input, and the check confirms that
+both implementations do so identically. The check does not imply that the resulting number is
+meaningful, and it is not. The page therefore makes no claim about inputs outside the trained
+range, because no honest claim can be made about them.
 
 ### Working on the harness
 
@@ -376,14 +415,14 @@ about 686 KB with nothing to download.
 the stylesheet no longer regenerates itself. Adding a utility class that is not already in
 `src/app.css` produces an unstyled element with no error and no console message.
 
-This is not hypothetical — it is the exact failure mode the design invites. It is caught by
-check [2], which parses class selectors out of the stylesheet and cross-checks them against
-every class the source uses.
+This is not a hypothetical risk: it is the specific failure that the design makes possible. It
+is detected by check [2], which extracts the class selectors from the stylesheet and compares
+them against every class used in the source.
 
-**If you prefer not to maintain a snapshot**, write plain CSS by hand for new elements
-instead of adding utilities. For a single-file teaching artefact this is usually clearer
-anyway: the hand-written block at the top of `src/app.css` is where readable, semantic
-styles belong, and it needs no regeneration step at all.
+**If maintaining a stored copy is inconvenient**, write plain CSS by hand for new elements
+instead of adding utility classes. For a single-file teaching resource this is often clearer
+in any case: the hand-written block at the top of `src/app.css` is the appropriate place for
+readable, semantic styles, and it requires no regeneration step.
 
 To legitimately regenerate after adding classes: temporarily restore the CDN `<script>` tag
 and the `tailwind.config` block in the template, load the page, click every control so the
@@ -394,7 +433,8 @@ MutationObserver sees the new classes, re-read the generated `<style>`, paste it
 
 ## 5. Adding a feature safely
 
-The ordering is not arbitrary — each step assumes the previous one is already correct.
+The order of these steps is significant, because each step assumes that the previous one has
+been completed correctly.
 
 1. **Add the column in `engineer()`** in `scripts/train_model.py`, and append it to
    `FEATURES`. Append, do not insert: inserting reorders the index mapping and silently
@@ -410,5 +450,6 @@ The ordering is not arbitrary — each step assumes the previous one is already 
    measured at the same moment as the target, it is leakage no matter how good the score
    looks. Train it both ways and report both numbers, exactly as `Iws` is handled.
 
-If the page's on-screen figures and the README ever disagree, the README is stale — the
-page reads its numbers from `model/model.json` at runtime and cannot drift.
+If the figures displayed on the page and the figures in this README ever disagree, the README
+is out of date. The page reads its values from `model/model.json` at run time and cannot
+become inconsistent with it.

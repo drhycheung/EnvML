@@ -10,57 +10,50 @@ the deployed page at <https://drhycheung.github.io/EnvML/>.
 ## Contents
 
 1. [Design thinking: from a dashboard that only looks back to a prediction you can act on](#1-design-thinking-from-a-dashboard-that-only-looks-back-to-a-prediction-you-can-act-on)
-2. [How the page was actually built](#2-how-the-page-was-actually-built)
-3. [The reproduction prompt](#3-the-reproduction-prompt) ← jump here if you just want to build it
+2. [How the page was built](#2-how-the-page-was-built)
+3. [Further work for students](#3-further-work-for-students)
+4. [The reproduction prompt](#4-the-reproduction-prompt) ← jump here if you just want to build it
 
 ---
 
 ## 1. Design thinking: from a dashboard that only looks back to a prediction you can act on
 
 The page is the output of one design-thinking loop applied to a real teaching problem:
-students already have plenty of environmental data, and plenty of dashboards to look at it
-with — and that is precisely why data alone changes nothing.
+students already have a great deal of environmental data, and a great many dashboards for
+displaying it. This is precisely why the data alone changes nothing.
 
 | Stage | This project's arc |
 |---|---|
-| **1. Empathise** | The user pain: an environmental analyst or school administrator opens a monitoring dashboard and sees 41,757 hours of history rendered beautifully. Every question they actually have is forward-looking: *will tomorrow evening exceed 150? Should we issue a health advisory? Do we switch on the heaters? Should the outdoor sports lesson move indoors?* A chart cannot answer any of them. It can only ever describe what already happened. So the data is abundant and the decision is still unavailable. |
+| **1. Empathise** | The user pain: an environmental analyst or school administrator opens a monitoring dashboard and sees 41,757 hours of history rendered beautifully. Every question they actually have is forward-looking: *will tomorrow evening exceed 150? Should we issue a health advisory? Do we switch on the heaters? Should the outdoor sports lesson move indoors?* A chart cannot answer any of them, because a chart can only describe what has already happened. The data are abundant, but the decision remains unavailable. |
 | **2. Define** | Problem statement: *we have the data but cannot make predictions, so the data is not very useful and does not lead to actions.* Design goal: the same data stream must produce a forward-looking estimate the user can act on — and must be honest enough that they trust it enough to act. |
-| **3. Ideate** | Options considered: (a) another monitoring dashboard — rejected, this is the thing that already exists and the thing that cannot decide anything; (b) a single fixed forecast number — rejected, useless without context; (c) point prediction + uncertainty interval + actionable class; (d) plus a baseline comparison so the number is believable; (e) plus an explicit "what we could not use and why" panel. Chosen: (c)+(d)+(e), with the class-threshold crossing as the actionable output. |
-| **4. Prototype** | The single-file page. Every choice materialised: the prediction is the centre of the page and the charts support it, not the other way round; a marker on the AQI scale showing where the estimate lands against the 50/150 thresholds that *are* the action triggers; an interval explained in words ("Among 5,220 historical records with similar test conditions, the true PM2.5 landed in this range 80% of the time…"); side-by-side baselines; and a rose-coloured panel stating that a feature was deliberately discarded *because it scored better*. |
-| **5. Test** | Cross-language parity tests, a DOM-stub end-to-end test, a browser pass with every non-document request aborted, and two real bugs caught by measurement rather than by looking — see §2. |
+| **3. Ideate** | Options considered: (a) a further monitoring dashboard — rejected, because that is what already exists and it cannot support a decision; (b) a single forecast number with no supporting information — rejected, because it cannot be acted upon; (c) a predicted value, an uncertainty range, and an actionable class; (d) a baseline comparison, so that the result can be assessed; (e) a panel stating which data could not be used, and why. Chosen: (c), (d) and (e), with the class threshold as the actionable output. |
+| **4. Prototype** | The single-file page. Every choice was implemented: the prediction occupies the main position on the page, and the charts support it; a marker on the AQI scale showing where the estimate lands against the 50/150 thresholds that *are* the action triggers; an interval explained in words ("Among 5,220 historical records with similar test conditions, the measured PM2.5 fell in this range 80% of the time…"); side-by-side baselines; and a highlighted panel stating that a feature was excluded deliberately *because including it produced a higher score*. |
+| **5. Test** | Parity tests between two independent implementations, an end-to-end test using a stub DOM, a browser test in which every request except the main document was blocked, and two faults that were detected by measurement but not by visual inspection — see section 2. |
 
 The measurable outcome was **decision usefulness**: a user must be able to set tomorrow's
-conditions, get a number, see whether it crosses an action threshold, and know how much to
-believe it. Trustworthiness is the second-order requirement, and it exists for the same
-reason — a prediction nobody trusts is as useless as no prediction at all.
+conditions, obtain an estimate, see whether it crosses an action threshold, and know how far
+to trust it. Trustworthiness is a secondary requirement, and it is required for the same
+reason — an estimate that a user does not trust will not be acted upon.
 
-**Why prediction and not another chart.** A dashboard answers "what has the pollution been?"
-A prediction answers "what will it be?" — and only the second one has an action attached to
-it. This is the distinction the whole project is built on, and it is why the prediction
-readout occupies the prime space on the page while the charts are supporting evidence.
+### Context: Monitor, Analyse, Control
 
-**Benchmark against the real thing**: the Beijing Municipal Ecological Environment
-Monitoring Centre publishes authoritative hourly PM2.5 monitoring, and national centres
-publish forecasts. This project complements rather than replaces them. The page says so,
-and frames its own numbers as "what machine learning achieves on this dataset", not as an
-official forecast. The teaching point is that the step from raw monitoring data to a
-usable prediction is small, inspectable, and reproducible with a few lines of Python.
-
-> [!TIP]
-> This project is deliberately **not** novel — pollution prediction from meteorology is a
-> crowded field, and UCI's dataset has been used for a decade. That is by design: it is a
-> teaching baseline. Students are encouraged to extend it, or build something adjacent —
-> a different city, a different pollutant, a different audience — so that what they build
-> brings genuinely unique value.
+This project covers the **analyse** and **control** stages of environmental informatics. The
+**monitor** stage is covered by a separate project,
+[EnvInfo](https://github.com/drhycheung/EnvInfo), which displays live air-quality
+measurements. The design-thinking problem addressed here begins where that project stops:
+once a monitoring system exists and the data are being displayed, the next question is
+whether those data can support a decision about a future hour. A dashboard cannot answer
+that question, and this project exists to answer it.
 
 ---
 
-## 2. How the page was actually built
+## 2. How the page was built
 
-Built with OpenCode driven through Playwright, using a verify-first loop: write the
-smallest thing, measure it, and only trust a claim once something independent confirms
-it. The prompt in [Part 3](#3-the-reproduction-prompt) encodes the findings below so a
-student gets a working result first-pass.
+The page was built with OpenCode, driven through Playwright, using a method in which each
+claim is measured before it is accepted: write the smallest useful version, measure it, and
+accept a claim only after something independent has confirmed it. The prompt in
+[Part 4](#4-the-reproduction-prompt) encodes the findings below, so that a working page
+should be produced on the first attempt.
 
 1. **Profile the data before modelling anything.** Checking `Iws` revealed negative
    one-hour differences and counter resets. That single check determined the model's
@@ -69,17 +62,17 @@ student gets a working result first-pass.
    before the real model, so every later number had something to be compared against.
 3. **Measure the leak instead of asserting it.** The tempting claim is "we removed a leaky
    feature". Instead, a second gradient-boosting model was trained *with* `Iws` and
-   cross-validated, so the page quotes a real measured 0.555 rather than a remembered
-   constant.
+   cross-validated, so the page reports a measured value of 0.555 that is recalculated each
+   time, rather than a value recorded once.
 4. **Serialise the model, then re-derive it.** Trees are exported to flat arrays, and the
-   prediction is recomputed from those arrays by two independent implementations —
-   scikit-learn's `predict` and a hand-written Python traversal. Disagreement means the
-   serialisation is wrong.
-5. **Prove the browser agrees with Python.** The pure-model region of the page is
+   prediction is recomputed from those arrays by two independent implementations:
+   scikit-learn's `predict`, and a separately written Python traversal. If the two
+   disagree, the serialisation is incorrect.
+5. **Confirm that the browser and Python agree.** The pure-model region of the page is
    extracted and executed under Node.js, then diffed against an independent Python
    implementation across 66 inputs. Current agreement: features to 1.1e-16, regression
    predictions **exactly**.
-6. **Prove the page is self-contained** by aborting every request except the top-level
+6. **Confirm that the page is self-contained** by aborting every request except the top-level
    document and confirming the page still renders and predicts.
 
 ### Bugs that measurement caught and looking did not
@@ -89,36 +82,53 @@ All three produced a page that *looked finished*. None produced an error.
 - **The dew-point slider was narrower than the data.** `min="-32" max="32"` was
   hard-coded while the training data reached −40 °C. Beijing winters routinely go below
   the slider's floor, so users could never enter a valid winter condition and the model
-  could never be exercised at the edge of its own range. It survived review because all
-  60 random samples happened to fall inside the slider — **the test data was kinder than
-  the data**. Fixed by deleting every hard-coded bound and deriving them from
+  could never be exercised at the edge of its own range. It was not detected by inspection because all 60 random samples happened to fall inside the slider: **the test cases were less demanding than the data**. Fixed by deleting every hard-coded bound and deriving them from
   `input_ranges` in the model file, with a structural test that fails if a literal
   `min`/`max` reappears on those inputs.
 
 - **The page was completely dead, and all the static tests passed.** During a rewrite,
-  `let windDir = 'cv'` was dropped. `init()` threw immediately, so every readout stayed
-  blank — but the page was fully styled, and the parity tests were green, because
-  `windDir` only exists in the DOM-dependent half of the script. The *browser* caught it.
+  `let windDir = 'cv'` was dropped. `init()` failed at the first statement, so every readout remained
+  blank. The page was fully styled and the parity tests passed, because `windDir` is used
+  only in the part of the script that depends on the page. The error was detected by the
+  *browser*.
   Fixed by adding a DOM-stub end-to-end check that executes the whole script under Node:
   if `init()` throws, the build now fails.
 
-- **A single-file page still needed the network.** The first version pulled Tailwind from
-  a CDN, which meant the page failed for any student offline or behind a restrictive
-  network — while the README described it as self-contained. Fixed by vendoring the
-  generated CSS inline. This introduced a subtler trap: the stylesheet became a *snapshot*,
-  so a newly added utility class would render unstyled with no error. `verify_page.py`
-  now cross-checks every class the markup uses against the stylesheet's class selectors.
+- **A single-file page still required a network connection.** The first version loaded
+  Tailwind from a CDN, so the page failed for any student who was offline or behind a
+  restrictive network, while the README described it as self-contained. Fixed by storing the
+  generated CSS inside the file. This introduced a second problem: the stylesheet became a
+  *fixed copy*, so a newly added utility class would produce an element with no styling and
+  no error message. `verify_page.py` now cross-checks every class the markup uses against the
+  class selectors present in the stylesheet.
 
 > [!IMPORTANT]
-> These three are the pedagogical heart of the lesson. In each case the page rendered
-> beautifully and every number on it was either clamped, blank, or dependent on a network
-> the reader might not have. An AI coding tool will hand you all three, describe the
-> result as working, and be confident about it. The only defence is to state the expected
-> result *before* running anything, then check it.
+> These three faults form the central lesson of this project. In each case the page appeared
+> complete, and every number on it was either limited to a narrower range than the data,
+> absent, or dependent on a network that the reader might not have. An AI coding tool will
+> produce all three, will describe the result as working, and will express confidence in it.
+> The only reliable method is to state the expected result *before* running anything, and
+> then to check it.
 
 ---
 
-## 3. The reproduction prompt
+## 3. Further work for students
+
+This project is deliberately **not** a research contribution. Predicting PM2.5 from
+meteorological data is a well-established area, and the UCI dataset has been used for this
+purpose for over a decade. That is intentional: this is a teaching baseline, not a
+state-of-the-art result.
+
+Students are encouraged to extend it, or to build something adjacent — a different city, a
+different pollutant, or a different audience — so that their work addresses a question that
+is genuinely not yet answered. Several extensions are suggested by the limitations listed in
+the [main README](../README.md#7-known-limitations); the most direct of them are to add a
+correct wind-speed measurement, to add an emissions inventory, and to test whether the
+model remains valid in a different city or a later period.
+
+---
+
+## 4. The reproduction prompt
 
 Give the prompt below to Gemini, OpenCode, Claude, ChatGPT or any coding agent. It encodes
 every pitfall above, so a working page should come out first-pass.
@@ -154,10 +164,11 @@ dataset; download the real one and verify it before using it.
     head -1 data/beijing_pm25.csv -> No,year,month,day,hour,pm2.5,DEWP,TEMP,PRES,cbwd,Iws,Is,Ir
   The file is about 2.0 MB compressed, 2.0 MB raw, and is byte-identical to the copy in the
   repository. If the row count is not 43,825 you have the wrong file — do not proceed.
-  Gotcha: the legacy UCI path .../ml/machine-learning-databases/00381/BeijingPM2.5.data now
-  returns 404; UCI restructured its archive. Use the static/public URL above.
-  Gotcha: the column is literally named `pm2.5`. The dot breaks attribute access in some
-  libraries, so rename it to `pm25` on load and say so in a comment.
+  Point to note: the legacy UCI path .../ml/machine-learning-databases/00381/BeijingPM2.5.data
+  now returns 404 because the archive has been reorganised. Use the static/public URL above.
+  Point to note: the column is named `pm2.5`. The full stop causes problems with attribute
+  access in some libraries, so rename it to `pm25` when loading the file and record the
+  change in a comment.
   Also download, or hand to the student, the dataset card:
     https://archive.ics.uci.edu/dataset/381/beijing+pm2+5+data
   Dataset: Beijing PM2.5 Data (Song et al., 2016), UCI Machine Learning Repository.
@@ -204,7 +215,8 @@ STEP 4 — export the trees so no ML library is needed in the browser. Flatten e
   re-derive the predictions from the exported arrays with a hand-written traversal and
   diff against sklearn's own predict. Expect max abs diff < 0.001 for the regressor and
   1.0000 class agreement. A mismatch means the serialisation is wrong, and it will not
-  throw — it will just predict quietly wrong numbers forever.
+  raise an error; it will return incorrect numbers without any indication that anything is
+  wrong.
 
 STEP 5 — the page. English throughout, including every code comment.
   - LEAD WITH THE ACTIONABLE OUTPUT. Show the predicted concentration and the air-quality

@@ -4,80 +4,127 @@
 
 ![Beijing PM2.5 Prediction Demo screenshot](docs/screenshot.png)
 
-A single-file, front-end-only interactive demo that predicts **PM2.5 concentration**
-and a three-band air-quality class from meteorological inputs, using gradient-boosted
-trees that run entirely in the browser. Built for classroom demonstration in
-**Environmental Informatics**, **Environmental ML** and **Smart City** courses.
+A single-file, front-end-only interactive demo that predicts the **PM2.5 concentration** and a
+three-band air-quality class from meteorological inputs. The prediction is produced by
+gradient-boosted trees that run entirely in the browser. It is intended for classroom
+demonstration in **Environmental Informatics**, **Environmental ML** and **Smart City**
+courses.
 
-File: `index.html` — no build step, no backend, no API key, **no network requests at
-all**. Double-click it from disk and it works, offline. Drop it into a GitHub Pages
-repository and it is deployed.
-
-**Why this exists.** Environmental data is abundant and dashboards to display it are easy,
-but a chart can only ever describe what has already happened. Someone asking *"will
-tomorrow evening exceed 150 µg/m³ — do we issue a health advisory, move the sports lesson
-indoors, switch on the heaters?"* cannot be helped by any amount of history. Data without
-prediction produces description, not decisions. This page takes the same data stream and
-turns it into a forward-looking estimate the user can act on, with the uncertainty
-attached so they know how far to trust it.
-
-A prediction nobody trusts is as useless as no prediction at all, so the page also shows
-its own evaluation against trivial baselines, and openly explains the one feature it had
-to throw away.
+File: `index.html` — no build step, no backend, no API key, and **no network requests at
+all**. Double-click it from disk and it works, offline. Place the same file in a GitHub
+Pages repository and it is deployed.
 
 ---
 
-## 1. From data to decision
+## 1. Where this project fits: Monitor, Analyse, Control
 
-The whole project is one distinction, and it is worth stating before the feature list:
+Environmental informatics is usually taught as three activities: **monitor**, **analyse** and
+**control**.
+
+| Stage | What it means | Which project |
+|---|---|---|
+| **Monitor** | Collect and display data so that the current situation is visible | [EnvInfo](https://github.com/drhycheung/EnvInfo) — a live dashboard of Hong Kong air quality |
+| **Analyse** | Examine the data in order to explain patterns and relationships | **This project** — the model that explains how weather relates to PM2.5 |
+| **Control** | Act on the analysis, by deciding what to do next | **This project** — the prediction, and the thresholds that trigger an action |
+
+The three stages are usually taught in that order, and it is worth being clear about why each
+one is necessary on its own.
+
+**Monitoring is not enough.** A dashboard displays what has already happened. It answers
+*"what was the pollution like this morning?"* It cannot answer *"will tomorrow evening exceed
+150 µg/m³?"*, and it therefore cannot support a decision about tomorrow. Data that cannot be
+used for a decision is of limited value, however well it is displayed.
+
+**Analysis alone is not enough either.** An analysis explains why pollution is high. A user
+who can only understand the past still has to decide about the future by judgement.
+
+**This project is the step from analysis to control.** It takes a data stream that could only
+be watched, and turns it into an estimate for a moment that has not happened yet. The estimate
+is presented next to the thresholds at which action is normally taken, so that a user can see
+whether a decision is required.
+
+It also presents the analysis honestly, because a prediction that the user cannot trust will
+not be acted upon. The page shows how the model performs against simple baselines, states
+which measurement could not be used, and displays the range within which the estimate is
+usually correct.
+
+The two projects are designed to be used together: EnvInfo supplies the monitoring stage, and
+this project supplies the analysis and control stages.
+
+---
+
+## 2. From data to a decision
 
 | Question | Answered by | Not answered by |
 |---|---|---|
-| "What has the pollution been?" | A dashboard, a chart, a time series | — |
+| "What has the pollution been?" | A dashboard, a chart or a time series | — |
 | "Will it exceed 150 µg/m³ tomorrow evening?" | — | A dashboard |
-| "Should we issue an advisory?" | **A prediction, shown against the threshold that triggers it** | — |
-| "How much should I believe it?" | Baselines, an empirical interval, and a stated leak | — |
+| "Should an advisory be issued?" | **A prediction, shown against the threshold that triggers it** | — |
+| "How much should the estimate be trusted?" | Baselines, an uncertainty range, and a stated limitation | — |
 
-The prediction therefore occupies the prime position on the page, in the largest type,
-with the AQI scale showing where the estimate lands against the 50 and 150 µg/m³
-thresholds — because those thresholds *are* the decision the user is trying to make. The
-charts are supporting evidence, not the headline.
+For this reason the prediction occupies the main position on the page and is displayed in the
+largest type. The air-quality scale beneath it shows where the estimate falls in relation to
+the 50 and 150 µg/m³ thresholds, because those thresholds are the decision that the user is
+trying to make. The charts appear after the prediction and are intended as supporting
+information.
 
-A user must be able to set tomorrow's conditions and get a prediction. A tool that can
-only replay historical rows has quietly become a dashboard; that distinction is the
-teaching point.
+The user must be able to enter the conditions expected for a future hour and obtain an
+estimate for that hour. A tool that can only display historical records is a dashboard,
+regardless of how the records are labelled, and it would not answer the question the project
+exists to answer.
 
-## 2. What the page does
+---
+
+## 3. What the page does
 
 | Feature | Implementation |
 |---|---|
-| **Predict PM2.5 from 5 sliders + wind direction** | The headline output, centre of the page. Gradient-boosted trees serialised to flat arrays; traversal in ~15 lines of vanilla JS |
-| **Actionable class against a threshold** | Second ensemble (450 trees) gives Good / Moderate / Polluted, with a marker on the AQI scale at 50 and 150 µg/m³ |
-| Evaluate any future hour | Sliders accept any month, hour and conditions, so "tomorrow evening" is a supported question |
-| Predict a three-band air quality class | Shown alongside the concentration |
-| No ML library in the browser | scikit-learn's fitted trees exported as `[feature, threshold, left, right, value]` at stride 5 |
-| Honest evaluation panel | Out-of-fold 5-fold CV metrics, with a predict-the-mean baseline and a linear-regression baseline beside the model |
-| Prediction interval | Empirical 10th–90th percentile of out-of-fold residuals, bucketed by predicted level |
-| Leakage demonstration | The page states that the dropped wind-speed feature *raises* R² from 0.533 to 0.555, and why that is bad news |
-| Task-design comparison | Accuracy of direct classification vs. thresholding the regression output |
-| Feature importance | Table with bars, plus a plain-language reading of why dew-point depression dominates |
-| "Load a random real record" | 60 held-out rows; shows the model's prediction next to the measured value and the error |
-| Slider bounds from the data | Every slider range is read from the model file, so it can never be narrower than the training data |
-| Zero dependencies | All CSS vendored inline, no CDN, no web fonts, no `fetch()` |
+| **Estimates PM2.5 from five sliders and a wind-direction control** | The main output of the page. Gradient-boosted trees serialised to flat arrays; the prediction requires about 15 lines of vanilla JavaScript |
+| **Reports an actionable class against a threshold** | A second ensemble of 450 trees gives Good / Moderate / Polluted, with a marker on the scale at 50 and 150 µg/m³ |
+| **Accepts any future hour** | The sliders accept any month, hour and conditions, so "tomorrow evening" is a question the page can answer |
+| Reports a three-band air-quality class | Shown alongside the concentration |
+| No machine-learning library in the browser | scikit-learn's fitted trees are exported as `[feature, threshold, left, right, value]` at stride 5 |
+| Honest evaluation panel | Out-of-fold cross-validation metrics, shown beside a predict-the-mean baseline and a linear-regression baseline |
+| Uncertainty range | The 10th and 90th percentiles of the out-of-fold errors, grouped by predicted level |
+| Leakage demonstration | The page states that including the wind-speed feature raises R² from 0.533 to 0.555, and explains why this is undesirable |
+| Task-design comparison | Accuracy when the class is predicted directly, compared with accuracy when the class is derived from the predicted concentration |
+| Feature importance | A table with bars, and a plain-language explanation of why dew-point depression is the most important feature |
+| "Load a random real record" | 60 held-out records; shows the prediction beside the measured value and the error |
+| Slider limits taken from the data | Every slider range is read from the model file, so it can never be narrower than the data used for training |
+| Zero external dependencies | All CSS is stored inside the file; no CDN, no web fonts, no `fetch()` |
 
-> **New to machine learning?** [Model notes §1](docs/model-notes.md#1-the-algorithms-in-plain-language)
-> explains baselines, linear regression, decision trees, gradient boosting,
-> cross-validation and the leak, from first principles — and traces a real prediction
-> through the exported trees, step by step.
+> **New to machine learning?** Section 1 of the [model notes](docs/model-notes.md#1-the-algorithms-in-plain-language)
+> explains baselines, linear regression, decision trees, gradient boosting and
+> cross-validation from first principles, and works through one real prediction step by step.
 
-## 3. Data, and the one feature that had to go
+---
+
+## 4. Data, sample size, and the one feature that had to go
 
 Source: [UCI Beijing PM2.5 Data](https://archive.ics.uci.edu/dataset/381/beijing+pm2+5+data)
-(Song et al., 2016), 43,824 hourly rows for Beijing 2010–2014. The 4.72% with a missing
-PM2.5 value are dropped, leaving **41,757** rows.
+(Song et al., 2016).
+
+### Sample size
+
+The sample size is stated in full on the page, and the figures are as follows.
+
+| Stage | Records | Explanation |
+|---|---|---|
+| Source dataset | **43,824** | Hourly monitoring records from Beijing, 1 January 2010 to 31 December 2014 |
+| Removed | **2,067** (4.72%) | Records with no PM2.5 measurement |
+| Used for modelling | **41,757** | The remaining complete records |
+
+All performance figures are **out-of-fold**, calculated under 5-fold cross-validation. The
+41,757 records are divided into 5 folds of approximately **8,351** records each. Each figure
+is calculated on the 8,351 records of one fold, using a model fitted on the other
+**33,406** records. No record is therefore used to score a model that was fitted on it.
+
+This distinction matters when the figures are quoted. The page does not display a model
+fitted on all 41,757 records; the 41,757 records are the total available, and any single
+figure on the page comes from a model fitted on approximately 80% of them.
 
 <details>
-<summary><strong>Download the data</strong> (if you do not have it — a copy is already committed at <code>data/beijing_pm25.csv</code>)</summary>
+<summary><strong>Downloading the data</strong> (a copy is already committed at <code>data/beijing_pm25.csv</code>)</summary>
 
 ```bash
 mkdir -p data && curl -L -o /tmp/pm25.zip \
@@ -86,123 +133,156 @@ unzip -o /tmp/pm25.zip -d data          # yields PRSA_data_2010.1.1-2014.12.31.c
 mv data/PRSA_data_2010.1.1-2014.12.31.csv data/beijing_pm25.csv
 ```
 
-Verify before you use it:
+Verify the file before using it:
 
 ```bash
-wc -l data/beijing_pm25.csv     # must be 43,825  (43,824 rows + header)
+wc -l data/beijing_pm25.csv     # must be 43,825  (43,824 records + 1 header line)
 head -1 data/beijing_pm25.csv   # No,year,month,day,hour,pm2.5,DEWP,TEMP,PRES,cbwd,Iws,Is,Ir
 ```
 
-Two gotchas: the legacy UCI path
-`.../ml/machine-learning-databases/00381/BeijingPM2.5.data` now returns **404** because UCI
-restructured its archive — use the `static/public` URL above. And the column is literally
-named `pm2.5`, whose dot breaks attribute access in some libraries; rename it to `pm25`
-on load. The committed copy is byte-identical to a fresh download.
+Two points to note. First, the older address
+`.../ml/machine-learning-databases/00381/BeijingPM2.5.data` now returns **404**, because the
+UCI archive has been reorganised; use the `static/public` address above. Second, the column
+name in the file is `pm2.5`, and the full stop in that name causes problems with some
+libraries; rename it to `pm25` when loading the file. The committed copy is byte-for-byte
+identical to a fresh download.
 
 </details>
 
-Ten features: air temperature, dew point, dew-point depression, pressure, pressure
-anomaly, cyclical sin/cos of hour, cyclical sin/cos of month, and wind direction as an
-ordinal code.
+### Features
 
-**Wind speed is missing, and that is the most important thing on the page.** The UCI
-column `Iws` is a *cumulative counter*, not an instantaneous reading: it climbs from
-about 0.45 to 585, and within a single year 18.9% of its consecutive one-hour
-differences are negative (1,301 of them obvious counter resets), while naive differencing
-produces physically impossible values like −489 m/s.
+Ten features are used: air temperature, dew point, dew-point depression, pressure, pressure
+anomaly, cyclical sine and cosine of hour, cyclical sine and cosine of month, and wind
+direction as an ordinal code.
 
-Using the raw counter anyway raises cross-validated R² from 0.533 to **0.555**. That
-"improvement" is time leaking through an accumulator, not physics. A higher score
-bought with leakage is worse than a lower honest score, so the feature is dropped and
-the page says so out loud. Both figures are recomputed on every training run — see the
-[full dataset card](docs/dataset.md).
+### Wind speed is missing, and this is the most important limitation on the page
 
-## 4. Results
+The UCI column `Iws` is a *cumulative counter*, not a measurement taken at that hour. It
+climbs from about 0.45 to 585. Within a single year, 18.9% of its consecutive one-hour
+differences are negative, and 1,301 of those are clear counter resets. Differencing the
+column produces physically impossible values, including −489 m/s.
 
-All out-of-fold, 5-fold shuffled cross-validation, seed 42.
+Using the raw counter as a feature raises cross-validated R² from 0.533 to **0.555**. This
+apparent improvement comes from time accumulating inside a counter, and not from atmospheric
+physics. A score obtained in this way is misleading, so the feature is excluded and the page
+states this openly. Both figures are recalculated on every training run. The full
+investigation is in the [dataset card](docs/dataset.md).
 
-**Regression — PM2.5 concentration**
+### Relationship to official sources
 
-| Method | R² | RMSE (µg/m³) | MAE |
+The Beijing Municipal Ecological Environment Monitoring Centre publishes authoritative hourly
+PM2.5 monitoring, and national centres publish official forecasts. This project does not
+replace either of them, and its figures should not be presented as an official forecast. The
+page states the same limitation. The teaching value lies in showing that the step from raw
+monitoring data to a usable prediction is short, inspectable, and reproducible in a small
+number of lines of Python.
+
+---
+
+## 5. Results
+
+All figures are out-of-fold, from 5-fold cross-validation with a fixed random seed.
+
+**Regression — PM2.5 concentration (µg/m³)**
+
+| Method | R² | RMSE | MAE |
 |---|---|---|---|
 | Always predict the training mean | −0.000 | 92.05 | 68.83 |
 | Multiple linear regression | 0.376 | 72.71 | 52.84 |
-| **Gradient-boosted trees (the page)** | **0.533** | 62.90 | 42.93 |
+| **Gradient-boosted trees (used by the page)** | **0.533** | 62.90 | 42.93 |
 
-Non-linearity is worth 16 percentage points of R² over linear regression. The
-remaining ~47% of the variance is not a modelling failure: weather does not determine
-pollution, emissions and regional transport do.
+Allowing non-linear relationships raises R² by 0.157 compared with linear regression. The
+remaining 0.467 of the variance is not a fault of the model. Weather conditions do not
+determine air pollution; emissions and the transport of pollution from surrounding regions do.
 
-**Classification — three-band air quality** (Good <50 · Moderate 50–150 · Polluted ≥150 µg/m³)
+**Classification — three-band air quality** (Good < 50 · Moderate 50–150 · Polluted ≥ 150 µg/m³)
 
 | Method | Accuracy | Balanced accuracy |
 |---|---|---|
-| Always predict the majority class | 40.66% | 50.0% |
-| **Gradient-boosted classifier (the page)** | **69.70%** | 67.22% |
-| Bands derived by thresholding the regression output | 66.90% | — |
+| Always predict the most common class | 40.66% | 50.0% |
+| **Gradient-boosted classifier (used by the page)** | **69.70%** | 67.22% |
+| Bands derived from the predicted concentration | 66.91% | — |
 
-That last row is a design lesson, not a model ranking: a concentration error of ±60 µg/m³
-flips borderline cases, so "predict a number then threshold it" and "classify" are
-different tasks with different error budgets.
+The last row is included to illustrate a property of the task rather than to rank the models.
+The regression has an RMSE of about 63 µg/m³, so many predictions fall within one band width
+of a threshold. When the predicted concentration is close to 50 or 150 µg/m³, a small error
+changes the resulting class. Predicting a concentration and then assigning a class is
+therefore a different task from predicting the class directly, and the two tasks do not
+produce the same accuracy.
 
-Two robustness checks: training on ≤2013 and testing on 2014 gives R² = 0.556 (close to
-the CV figure, so the relationships are stable in time rather than an artefact), and
-the full confusion matrix is printed on the page.
+Two further checks support these figures. Training on 2010–2013 and testing on 2014 alone
+gives R² = 0.556, which is close to the cross-validated figure; the relationships are
+therefore stable over time rather than an artefact of the data division. The full confusion
+matrix is printed on the page.
 
-## 5. How to run
+---
 
-- **Students, teachers, anyone**: double-click `index.html`. It needs nothing else —
-  no server, no network, no installation. This is the intended way to use it.
-- **Locally with a server** (only if you want to edit): `python3 -m http.server 8000`,
-  then visit `http://localhost:8000/index.html`. Functionally identical.
-- **GitHub Pages (your own deployment)**: push `index.html` to *your* repository, then
-  enable Pages via **Settings → Pages → Deploy from a branch** (branch + `/ (root)`).
-  Yours will live at `https://<your-username>.github.io/<repo-name>/`. The link at the
-  top of this README is the author's own deployment.
+## 6. How to run
+
+- **Students, teachers, and anyone else**: double-click `index.html`. Nothing else is
+  required — no server, no network, no installation. This is the intended method of use.
+- **With a local server** (only needed if you wish to edit the file):
+  `python3 -m http.server 8000`, then open `http://localhost:8000/index.html`. Functionally
+  identical.
+- **GitHub Pages, for your own deployment**: place `index.html` in *your* repository, then
+  enable Pages through **Settings → Pages → Deploy from a branch**, selecting the branch and
+  `/ (root)`. Your deployment will be at `https://<your-username>.github.io/<repo-name>/`.
+  The link at the top of this README is the author's own deployment.
 
 ### Rebuilding from source
 
-`index.html` is generated. Edit the sources, not the output.
+`index.html` is generated. To change it, edit the source files, not the output.
 
 ```bash
 python3 scripts/train_model.py    # retrain -> model/model.json   (~60 s)
 python3 scripts/build_page.py     # inline model + CSS -> index.html
-python3 scripts/verify_page.py    # prove the page still agrees with Python
+python3 scripts/verify_page.py    # confirm the page agrees with the Python implementation
 ```
 
-`verify_page.py` runs 26 checks and exits non-zero on failure. See the
-[model notes](docs/model-notes.md) for what each one covers and why it exists.
+Training is reproducible: two runs of `train_model.py` produce byte-for-byte identical
+output. This requires the estimators to be given a fixed random seed, for a reason explained
+in section 1.9 of the [model notes](docs/model-notes.md#19-reproducibility-two-perfectly-duplicated-features).
 
-## 6. Known limitations
+`verify_page.py` runs 26 checks and exits with a non-zero status if any of them fails. The
+[model notes](docs/model-notes.md) explain what each check covers and why it exists.
 
-Several of these are consequences of the constraints in §3 rather than oversights:
+---
+
+## 7. Known limitations
+
+Several of the following are consequences of the constraints described in section 4, and
+would require a different study design to resolve.
 
 | Limitation | Consequence |
 |---|---|
-| Trained **only** on Beijing 2010–2014 | Applying it to Hong Kong or anywhere else degrades markedly. It is a demonstration of method, not a forecast |
-| **No wind speed**, the obvious missing predictor | Materially caps achievable accuracy; §3 explains why |
-| Weather inputs only — no emissions inventory | The unexplained ~47% of variance is structural, not fixable by a better learner |
-| Single-city, single-period training set | No claim of generalisation across cities, seasons or instrument types |
-| Class bands are hard thresholds at 50 / 150 µg/m³ | Adjacent bands have no sharp physical boundary, which is why the confusion matrix is full of near-misses |
-| Prediction interval is empirical, not probabilistic | It reports where the truth *usually* landed for similar conditions, not a calibrated 80% credible interval |
-| Leaf values rounded when exporting | Regression self-check absorbs this (max deviation 0.0007 µg/m³), but the browser is not bit-identical to a live sklearn model |
-| `src/app.css` is a vendored snapshot | Adding a new utility class without regenerating it yields an unstyled element — `verify_page.py` fails the build to stop this |
-| Desktop-first layout | Tested at 390 px and 1280 px with no horizontal overflow, but not a full mobile design |
+| Trained **only** on Beijing, 2010–2014 | Applying the model to Hong Kong or to any other location would reduce accuracy substantially. It is a demonstration of method, not a forecast |
+| **No wind speed**, which is the most directly relevant available predictor | This places a ceiling on the accuracy that can be achieved; section 4 explains why |
+| Weather inputs only; no emissions inventory | The unexplained variance is structural and cannot be removed by a better algorithm |
+| One city and one period | No claim of generalisation to other cities, seasons or instruments |
+| Class bands are fixed thresholds at 50 and 150 µg/m³ | Adjacent bands have no sharp physical boundary, which is why the confusion matrix contains many near-misses |
+| The uncertainty range is empirical rather than probabilistic | It reports where the measured value usually fell for similar conditions, and not a calibrated 80% credible interval |
+| Leaf values are rounded when exported | The export self-check absorbs this (maximum deviation 0.00073 µg/m³), but the browser is not bit-for-bit identical to a live scikit-learn model |
+| `src/app.css` is a stored snapshot | Adding a new utility class without regenerating the file produces an element with no styling; `verify_page.py` fails the build in order to prevent this |
+| Designed for desktop screens | Tested at 390 px and 1280 px with no horizontal overflow, but it is not a complete mobile design |
 
-## 7. Documentation
+---
+
+## 8. Documentation
 
 | Document | What it covers |
 |---|---|
-| **[Vibe-coding guide](docs/vibe-coding.md)** | The design-thinking rationale (data without prediction cannot drive action), how the page was actually built with an AI coding tool, the bugs that measurement caught and looking did not, and the complete copy-paste prompt — including how to download the dataset — to reproduce it |
-| **[Model notes](docs/model-notes.md)** | **The algorithms taught from scratch** (baseline, linear regression, decision trees, gradient boosting, cross-validation, the leak), then tree serialisation, the verification harness, the vendored-CSS trade-off, and how to add a feature safely |
-| **[Dataset card](docs/dataset.md)** | Provenance, every column and why it is or is not used, and the `Iws` data-quality investigation in full |
+| **[Vibe-coding guide](docs/vibe-coding.md)** | The design-thinking rationale (why data without prediction cannot lead to an action), how the page was built with an AI coding tool, three faults that measurement detected and visual inspection did not, further work for students, and the complete prompt needed to reproduce the page, including how to download the dataset |
+| **[Model notes](docs/model-notes.md)** | **The algorithms explained from first principles** (baseline, linear regression, decision trees, gradient boosting, cross-validation and data leakage), followed by the tree serialisation format, the verification harness, the stored-stylesheet trade-off, and how to add a feature safely |
+| **[Dataset card](docs/dataset.md)** | Provenance, every column and the reason it is or is not used, and the complete `Iws` data-quality investigation |
 
-## 8. Licences & attribution
+---
+
+## 9. Licences and attribution
 
 - **Code**: MIT — see [LICENSE](LICENSE), © 2026 drhycheung.
 - **Data**: [Beijing PM2.5 Data](https://archive.ics.uci.edu/dataset/381/beijing+pm2+5+data)
-  (Song et al., 2016), CC BY 4.0, courtesy of the UCI Machine Learning Repository.
-  Copyright remains with UCI and the original authors.
+  (Song et al., 2016), CC BY 4.0, courtesy of the UCI Machine Learning Repository. Copyright
+  remains with UCI and the original authors.
 
-The two are separately licensed: the MIT licence covers this repository's code only and
-does not extend to the dataset.
+The two are separately licensed. The MIT licence covers this repository's code only and does
+not extend to the dataset.

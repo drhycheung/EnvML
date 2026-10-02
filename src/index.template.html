@@ -31,11 +31,23 @@
     <h1 class="text-2xl sm:text-3xl font-semibold tracking-tight">Beijing PM2.5 Prediction Demo</h1>
     <p class="mt-2 text-slate-300 text-sm sm:text-base leading-relaxed max-w-3xl">
       Enter air temperature, dew point, atmospheric pressure, wind direction, month
-      and hour to get an instant PM2.5 concentration and a three-band air-quality
-      class from gradient-boosted trees. The model is trained on
-      <span id="hdr-rows"></span> hourly monitoring records from Beijing.
-      Every metric on this page is an <strong class="text-white">out-of-fold
-      cross-validated</strong> figure, shown next to the simplest possible baseline.
+      and hour to obtain an estimated PM2.5 concentration and a three-band
+      air-quality class, using gradient-boosted trees.
+    </p>
+    <p class="mt-3 text-slate-400 text-xs leading-relaxed max-w-3xl">
+      <strong class="text-slate-300">Sample size.</strong>
+      The source dataset contains <span id="hdr-raw"></span> hourly monitoring records
+      from Beijing (2010&ndash;2014). Records with no PM2.5 measurement
+      (<span id="hdr-missing"></span> of the total) were removed, leaving
+      <span id="hdr-rows"></span> records for modelling. All performance figures on this
+      page are <strong class="text-slate-300">out-of-fold</strong> cross-validated:
+      the data were divided into <span id="hdr-folds"></span> folds, and each figure was
+      calculated on the <span id="hdr-testsize"></span> records held out by a fold, using a
+      model fitted on the remaining <span id="hdr-trainsize"></span> records. The two counts
+      differ by one record between folds, because the record total is not an exact multiple of
+      the number of folds. No record is
+      therefore used to score a model that was fitted on it. Each reported figure is shown
+      beside the simplest possible baseline for comparison.
     </p>
   </div>
 </header>
@@ -582,6 +594,21 @@ function init() {
     document.getElementById('r-' + k).textContent = R[k][0] + ' – ' + R[k][1] + unit[k];
   }
   document.getElementById('hdr-rows').textContent = mt.rows_used.toLocaleString();
+  document.getElementById('hdr-raw').textContent = mt.raw_rows.toLocaleString();
+  document.getElementById('hdr-missing').textContent = mt.raw_missing_pm25_pct.toFixed(2) + '%';
+  document.getElementById('hdr-folds').textContent = mt.cv_folds;
+
+  // Report the range of actual fold sizes. Rounding rows_used / cv_folds would imply
+  // that every fold held out exactly the same number of records, which is not true.
+  const fmtRange = (sizes) => {
+    const lo = Math.min.apply(null, sizes), hi = Math.max.apply(null, sizes);
+    return lo === hi ? lo.toLocaleString()
+                     : lo.toLocaleString() + '–' + hi.toLocaleString();
+  };
+  document.getElementById('hdr-testsize').textContent =
+    fmtRange(mt.fold_test_sizes);
+  document.getElementById('hdr-trainsize').textContent =
+    fmtRange(mt.fold_train_sizes);
 
   for (const id of IDS) {
     document.getElementById('in-' + id).addEventListener('input', render);

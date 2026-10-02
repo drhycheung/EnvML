@@ -56,7 +56,7 @@ model does not use the column.
 
 The cost of that decision is worth stating plainly: **wind speed is the variable
 you would most expect to matter, and it is the one variable this model cannot
-use.** The page states this to students explicitly rather than quietly omitting
+use.** The page states this explicitly rather than omitting
 the feature.
 
 ### The leak, measured rather than asserted
