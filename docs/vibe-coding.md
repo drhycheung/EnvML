@@ -37,8 +37,7 @@ reason — an estimate that a user does not trust will not be acted upon.
 
 ### Context: Monitor, Analyse, Control
 
-This project is one of two teaching examples. The companion project,
-[EnvInfo](https://github.com/drhycheung/EnvInfo) is a browser-based air-quality dashboard for
+The companion project,
 Hong Kong that displays live readings from EPD stations (monitoring with visual analysis to
 support immediate decisions). EnvML draws on historical weather and PM2.5 measurements
 (monitor), builds a statistical model to relate weather to PM2.5 (analyse), and produces

@@ -18,17 +18,19 @@ Pages repository and it is deployed.
 
 ## 1. Where this project fits: Monitor, Analyse, Control
 
-This project is one of two teaching examples. The companion project,
-[EnvInfo](https://github.com/drhycheung/EnvInfo) is a browser-based air-quality dashboard for
-Hong Kong that displays live readings from EPD stations. EnvML applies the same three ideas
-to a different dataset: it uses historical weather and PM2.5 measurements (monitor), builds
-a statistical model to relate weather to PM2.5 (analyse), and produces hour-ahead predictions
+Environmental informatics can be understood through three activities: **monitor**, **analyse**
+and **control**. Most data-driven projects combine elements of more than one.
+
+This project draws on historical weather and PM2.5 measurements (monitor), builds a
+statistical model to relate weather to PM2.5 (analyse), and produces hour-ahead predictions
 with policy thresholds to support decision-making (control).
 
 **A monitoring dashboard alone is not enough.** A dashboard shows what has already happened.
 It cannot answer *"will tomorrow evening exceed 150 µg/m³?"*, so it cannot directly support a
 decision about the future. Analysis and prediction are needed to move from description to
 action.
+
+---
 
 ---
 ## 2. What the page does
