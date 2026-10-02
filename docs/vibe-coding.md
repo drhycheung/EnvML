@@ -37,16 +37,15 @@ reason — an estimate that a user does not trust will not be acted upon.
 
 ### Context: Monitor, Analyse, Control
 
-The concepts of **monitor**, **analyse** and **control** are useful for describing how
-data-informed work operates. In practice, a single project often combines elements of all
-three. **This project** draws on historical weather and PM2.5 measurements (monitoring through
-data collection), builds a statistical model to identify relationships between weather and
-PM2.5 (analyse), and uses that model to predict future concentrations that can inform
-decisions (control). **EnvInfo** ([https://github.com/drhycheung/EnvInfo](https://github.com/drhycheung/EnvInfo))
-is a separate example that applies the same ideas to a different dataset.
+This project is one of two teaching examples. The companion project,
+[EnvInfo](https://github.com/drhycheung/EnvInfo) is a browser-based air-quality dashboard for
+Hong Kong that displays live readings from EPD stations (monitoring with visual analysis to
+support immediate decisions). EnvML draws on historical weather and PM2.5 measurements
+(monitor), builds a statistical model to relate weather to PM2.5 (analyse), and produces
+predictions with policy thresholds to support decisions about future conditions (control).
 
-These are two different examples and are not designed to work together as a pipeline; each
-combines the three activities in its own way for its own purpose.
+These are two different examples using different datasets; they are independent and not
+designed to work together as a pipeline.
 
 ---
 

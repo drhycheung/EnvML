@@ -23,15 +23,18 @@ Environmental informatics is usually taught as three activities: **monitor**, **
 
 | Stage | What it means | Which project |
 |---|---|---|
-| **Monitor** | Collect data about conditions so that the current situation is visible | Both projects involve monitoring in different ways. [EnvInfo](https://github.com/drhycheung/EnvInfo) displays current air-quality conditions. **This project** uses historical weather and PM2.5 measurements collected over time as its data source. |
-| **Analyse** | Examine data to identify patterns, relationships or meaning | [EnvInfo](https://github.com/drhycheung/EnvInfo) performs analysis through visualisation to reveal spatial patterns and comparisons. **This project** performs analysis through statistical modelling to explain how weather relates to PM2.5. |
-| **Control** | Use insights from monitoring and analysis to support action or decision-making | [EnvInfo](https://github.com/drhycheung/EnvInfo) makes current conditions visible to help users decide what action to take now. **This project** produces predictions that can help inform decisions about future conditions, shown alongside thresholds at which action is normally taken. |
+This project is one of two teaching examples. The companion project,
+[EnvInfo](https://github.com/drhycheung/EnvInfo) is a browser-based air-quality dashboard for
+Hong Kong that displays live readings from EPD stations (monitoring with on-the-fly
+visualisation). EnvML applies the same three ideas to a different dataset: it uses historical
+weather and PM2.5 measurements (monitor), builds a statistical model to relate weather to
+PM2.5 (analyse), and produces hour-ahead predictions with policy thresholds to support
+decision-making (control).
 
-The three concepts overlap in practice. Most data-driven projects combine elements of all
-three, rather than belonging to just one stage.
-
-Each project applies these ideas to a different dataset and for a different purpose. They are
-two different examples and are not designed to work together as a pipeline.
+**A monitoring dashboard alone is not enough.** A dashboard shows what has already happened.
+It cannot answer *"will tomorrow evening exceed 150 µg/m³?"*, so it cannot directly support a
+decision about the future. Analysis and prediction are needed to move from description to
+action.
 
 The two projects are designed to be used together: EnvInfo supplies the monitoring stage, and
 this project supplies the analysis and control stages.
