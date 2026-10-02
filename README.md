@@ -31,14 +31,7 @@ decision about the future. Analysis and prediction are needed to move from descr
 action.
 
 ---
-## 2. From data to a decision
-
-A monitoring dashboard shows what has already happened, but it cannot answer *"will tomorrow
-evening exceed 150 µg/m³?"*. To move from description to decision-making, analysis and
-prediction are needed to estimate future conditions against the thresholds that trigger action.
-
----
-## 3. What the page does
+## 2. What the page does
 
 | Feature | Implementation |
 |---|---|
@@ -62,7 +55,7 @@ prediction are needed to estimate future conditions against the thresholds that 
 
 ---
 
-## 4. Data, sample size, and the one feature that had to go
+## 3. Data, sample size, and the one feature that had to go
 
 Source: [UCI Beijing PM2.5 Data](https://archive.ics.uci.edu/dataset/381/beijing+pm2+5+data)
 (Song et al., 2016).
@@ -142,7 +135,7 @@ number of lines of Python.
 
 ---
 
-## 5. Results
+## 4. Results
 
 All figures are out-of-fold, from 5-fold cross-validation with a fixed random seed.
 
@@ -180,7 +173,7 @@ matrix is printed on the page.
 
 ---
 
-## 6. How to run
+## 5. How to run
 
 - **Students, teachers, and anyone else**: double-click `index.html`. Nothing else is
   required — no server, no network, no installation. This is the intended method of use.
@@ -211,7 +204,7 @@ in section 1.9 of the [model notes](docs/model-notes.md#19-reproducibility-two-p
 
 ---
 
-## 7. Known limitations
+## 6. Known limitations
 
 Several of the following are consequences of the constraints described in section 4, and
 would require a different study design to resolve.
@@ -230,7 +223,7 @@ would require a different study design to resolve.
 
 ---
 
-## 8. Documentation
+## 7. Documentation
 
 | Document | What it covers |
 |---|---|
@@ -240,7 +233,7 @@ would require a different study design to resolve.
 
 ---
 
-## 9. Licences and attribution
+## 8. Licences and attribution
 
 - **Code**: MIT — see [LICENSE](LICENSE), © 2026 drhycheung.
 - **Data**: [Beijing PM2.5 Data](https://archive.ics.uci.edu/dataset/381/beijing+pm2+5+data)
