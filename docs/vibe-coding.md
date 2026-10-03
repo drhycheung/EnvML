@@ -37,9 +37,9 @@ reason — an estimate that a user does not trust will not be acted upon.
 
 ### Context: Monitor, Analyse, Control
 
-The companion project,
-Hong Kong that displays live readings from EPD stations (monitoring with visual analysis to
-support immediate decisions). EnvML draws on historical weather and PM2.5 measurements
+The companion project is a Hong Kong air-quality dashboard that displays live readings from
+EPD stations (monitoring with visual analysis to support immediate decisions). EnvML draws on
+historical weather and PM2.5 measurements
 (monitor), builds a statistical model to relate weather to PM2.5 (analyse), and produces
 predictions with policy thresholds to support decisions about future conditions (control).
 
@@ -123,7 +123,7 @@ state-of-the-art result.
 Students are encouraged to extend it, or to build something adjacent — a different city, a
 different pollutant, or a different audience — so that their work addresses a question that
 is genuinely not yet answered. Several extensions are suggested by the limitations listed in
-the [main README](../README.md#7-known-limitations); the most direct of them are to add a
+the [main README](../README.md#6-known-limitations); the most direct of them are to add a
 correct wind-speed measurement, to add an emissions inventory, and to test whether the
 model remains valid in a different city or a later period.
 
