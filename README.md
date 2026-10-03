@@ -32,7 +32,6 @@ action.
 
 ---
 
----
 ## 2. What the page does
 
 | Feature | Implementation |
